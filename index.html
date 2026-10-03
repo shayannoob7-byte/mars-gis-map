@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0e14">
+  <title>3D Mars Globe Command Center</title>
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Widgets/widgets.css">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Cesium.js"></script>
+  <script defer src="app.js"></script>
+  <script defer src="solar-system.js"></script>
+</head>
+<body>
+  <div id="cesiumContainer" role="region" aria-label="Interactive three-dimensional Mars globe"></div>
+  <section id="telemetry-bar" class="hud-panel" aria-labelledby="telemetry-title">
+    <h2 id="telemetry-title"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M3 15c5 1 11-2 18-7M6 7l4 2-2 3 4 2 2 5"/></svg><span class="heading-neutral">Mars</span> Telemetry</h2>
+    <dl class="telemetry-grid">
+      <dt>Latitude</dt><dd id="cursor-lat">—</dd>
+      <dt>Longitude</dt><dd id="cursor-lon">—</dd>
+      <dt>Camera altitude</dt><dd id="camera-alt">—</dd>
+    </dl>
+    <div class="panel-divider"></div>
+    <section id="location-inspector" aria-labelledby="location-title" aria-live="polite">
+      <h3 id="location-title"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-8 8-13a8 8 0 1 0-16 0c0 5 8 13 8 13Z"/><circle cx="12" cy="9" r="3"/></svg><span class="heading-neutral">Selected</span> Location</h3>
+      <p id="location-name" class="help-text">Click anywhere on Mars to inspect a location.</p>
+      <dl class="telemetry-grid location-grid">
+        <dt>Latitude</dt><dd id="selected-lat">—</dd>
+        <dt>Longitude</dt><dd id="selected-lon">—</dd>
+        <dt>To InSight station</dt><dd id="station-distance">—</dd>
+      </dl>
+      <p id="location-weather" class="status-text">Weather observations are available only at the InSight station in this project.</p>
+      <div class="jump-grid">
+        <button id="inspect-insight" class="hud-btn" type="button">Inspect InSight</button>
+        <button id="clear-location" class="hud-btn secondary" type="button">Clear Selection</button>
+      </div>
+    </section>
+    <div class="panel-divider"></div>
+    <h3 id="weather-heading">InSight Station · Reference</h3>
+    <p class="help-text station-location">Elysium Planitia · 4.5024°N, 135.6234°E</p>
+    <dl class="telemetry-grid">
+      <dt>Sol</dt><dd id="weather-sol">—</dd>
+      <dt>Mean temperature</dt><dd id="weather-temp">—</dd>
+      <dt>Mean pressure</dt><dd id="weather-pressure">—</dd>
+      <dt>Observed (UTC)</dt><dd id="weather-date">—</dd>
+    </dl>
+    <p id="weather-status" class="status-text" role="status">Requesting NASA data…</p>
+    <p class="help-text">Archived measurements at Elysium Planitia. InSight's mission ended in 2022; these are not current Mars weather.</p>
+    <a class="source-link" href="https://api.nasa.gov/insight_weather/?api_key=DEMO_KEY&amp;feedtype=json&amp;ver=1.0" target="_blank" rel="noopener noreferrer">NASA observation source ↗</a>
+  </section>
+  <aside id="control-panel" class="hud-panel" aria-labelledby="command-title">
+    <p class="eyebrow">NASA Space Apps · Mars Explorer</p>
+    <h1 id="command-title">3D MARS GLOBE COMMAND CENTER</h1>
+    <button id="open-solar" class="hud-btn" type="button">Explore Solar System ↗</button>
+    <label for="basemap-select">Surface imagery</label>
+    <select id="basemap-select">
+      <option value="viking">USGS Viking Color Mosaic</option>
+      <option value="mola">MOLA Topographic Shaded Relief</option>
+    </select>
+    <p id="map-status" class="status-text" role="status">Initializing globe…</p>
+    <section class="control-section" aria-labelledby="hirise-title">
+      <h2 id="hirise-title">HiRISE Close-Up</h2>
+      <label for="hirise-select">NASA orbital imagery overlay</label>
+      <select id="hirise-select">
+        <option value="off">Off — global basemap only</option>
+        <option value="gale">Gale Crater · Curiosity</option>
+        <option value="spirit">Gusev Crater · Spirit</option>
+        <option value="opportunity">Meridiani Planum · Opportunity</option>
+      </select>
+      <p id="hirise-status" class="status-text" role="status">Choose a site to load HiRISE and fly to its coverage.</p>
+      <div id="hirise-controls" hidden>
+        <label for="hirise-opacity">Overlay opacity <output id="hirise-opacity-value" for="hirise-opacity">100%</output></label>
+        <input id="hirise-opacity" type="range" min="0" max="100" step="5" value="100">
+        <button id="hirise-fly" class="hud-btn" type="button">Return to HiRISE Site</button>
+        <p class="help-text">Detailed grayscale imagery covers only the selected mosaic footprint. Gaps show the global basemap. This overlay does not add terrain elevation.</p>
+        <a id="hirise-source" class="source-link" target="_blank" rel="noopener noreferrer">NASA dataset metadata ↗</a>
+        <p class="help-text">HiRISE: NASA / JPL-Caltech / University of Arizona · Served by NASA Mars Trek.</p>
+      </div>
+    </section>
+    <button id="profiler-btn" class="hud-btn" type="button" aria-pressed="false" aria-controls="inspector-panel">Toggle 3D 2-Point Terrain &amp; Distance Profiler</button>
+    <p id="profiler-instructions" class="help-text">Enable the profiler, then select two points on Mars.</p>
+    <section class="control-section" aria-labelledby="jump-title">
+      <h2 id="jump-title"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15 4 20l1-6M9 15l-3-3C9 6 15 3 21 3c0 6-3 12-9 15l-3-3Zm3 3 6 1-5 3"/><circle cx="15" cy="9" r="2"/></svg>Quick Jump</h2>
+      <div class="jump-grid">
+        <button id="jump-jezero" class="hud-btn" type="button"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M3 15c5 1 11-2 18-7M6 7l4 2-2 3 4 2 2 5"/></svg>Jezero Crater</button>
+        <button id="jump-gale" class="hud-btn" type="button"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 20 7-12 4 6 3-10 6 16H2Zm4-7 3 2 2-2"/></svg>Gale Crater</button>
+        <button id="jump-olympus" class="hud-btn" type="button"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 20 7-12 4 6 3-10 6 16H2Zm4-7 3 2 2-2"/></svg>Olympus Mons</button>
+        <button id="jump-valles" class="hud-btn" type="button"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9c4 0 4-6 8-6s4 6 8 6h4M2 18c4 0 4-6 8-6s4 6 8 6h4"/></svg>Valles Marineris</button>
+        <button id="jump-insight" class="hud-btn" type="button"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><circle cx="12" cy="12" r="8"/></svg>InSight Station</button>
+      </div>
+    </section>
+    <section id="inspector-panel" class="control-section" aria-labelledby="inspector-title" aria-live="polite" aria-atomic="true">
+      <h2 id="inspector-title"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 13-13 5 5L8 21Zm5-5 3 3m1-7 3 3"/></svg>Distance Inspector</h2>
+      <dl class="measurement-list">
+        <dt>Mars surface distance · R = 3389.5 km</dt><dd id="surface-distance">—</dd>
+        <dt>Ellipsoid geodesic path length</dt><dd id="geodesic-distance">—</dd>
+        <dt>Direct 3D chord distance</dt><dd id="chord-distance">—</dd>
+        <dt>Point A · latitude, longitude</dt><dd id="point-a">—</dd>
+        <dt>Point B · latitude, longitude</dt><dd id="point-b">—</dd>
+      </dl>
+      <p id="measurement-note" class="help-text">Imagery only: terrain elevations and slope are unavailable. Surface measurements exclude terrain relief.</p>
+      <button id="clear-profiler" class="hud-btn secondary" type="button">Clear Measurement</button>
+    </section>
+    <p class="help-text navigation-help">Drag to rotate · Scroll to zoom · Ctrl + drag to tilt. Select a landing-site marker for mission details. Press Escape to exit the profiler.</p>
+    <footer class="attribution">Rendering: <a href="https://cesium.com/" target="_blank" rel="noopener noreferrer">CesiumJS</a> · Viking imagery: <a href="https://astro.arcgis.com/arcgis/rest/services/OnMars/MDIM/MapServer" target="_blank" rel="noopener noreferrer">NASA / JPL / USGS / Esri</a> · MOLA: <a href="https://planetarymaps.usgs.gov/" target="_blank" rel="noopener noreferrer">NASA / USGS Astrogeology</a> · Weather: <a href="https://api.nasa.gov/" target="_blank" rel="noopener noreferrer">NASA</a></footer>
+  </aside>
+  <section id="site-popup" class="hud-panel" role="dialog" aria-labelledby="site-title" hidden>
+    <button id="close-popup" class="close-btn" type="button" aria-label="Close overview">×</button>
+    <p id="site-category" class="eyebrow">Surface Mission</p><h2 id="site-title"></h2>
+    <p id="site-mission" class="mission-name"></p><p id="site-description"></p>
+    <dl id="site-facts" class="measurement-list" hidden></dl>
+    <p id="site-coordinates" class="coordinate-text"></p>
+    <a id="site-source" class="source-link" target="_blank" rel="noopener noreferrer" hidden>NASA overview and measurements ↗</a>
+  </section>
+  <div id="fatal-error" class="hud-panel error-panel" role="alert" hidden></div>
+  <div id="cesium-credits" hidden></div>
+  <section id="solar-view" role="dialog" aria-modal="true" aria-labelledby="solar-title" hidden>
+    <canvas id="solar-canvas" aria-label="Rotatable three-dimensional solar-system model. Drag to rotate and scroll to zoom."></canvas>
+    <div class="solar-header">
+      <div><p class="eyebrow">Our place in the Solar System</p><h2 id="solar-title">From Mars to the Sun &amp; Earth</h2></div>
+      <button id="close-solar" class="hud-btn" type="button">← Return to Mars</button>
+    </div>
+    <aside class="solar-panel hud-panel">
+      <h3>Mars Distance Reference</h3>
+      <label for="solar-date">Model date · 12:00 UTC</label>
+      <input id="solar-date" type="date" min="1800-01-01" max="2049-12-31">
+      <div class="jump-grid">
+        <button id="solar-today" class="hud-btn" type="button">Today</button>
+        <button id="solar-inner" class="hud-btn" type="button">Inner Planets</button>
+        <button id="solar-all" class="hud-btn" type="button">All 8 Planets</button>
+        <button id="solar-reset" class="hud-btn" type="button">Reset View</button>
+      </div>
+      <dl class="solar-distances" aria-live="polite">
+        <dt class="mars-line">Mars ↔ Sun</dt><dd id="distance-mars-sun">—</dd>
+        <dt class="earth-line">Mars ↔ Earth</dt><dd id="distance-mars-earth">—</dd>
+        <dt class="sun-line">Earth ↔ Sun</dt><dd id="distance-earth-sun">—</dd>
+        <dt>Earth–Mars one-way light time</dt><dd id="solar-light-time">—</dd>
+      </dl>
+      <p id="solar-status" class="status-text" role="status"></p>
+      <p class="help-text">Approximate geometric distances, not live tracking. “Earth” uses the Earth–Moon barycenter. UTC approximates the model's dynamical time.</p>
+      <a class="source-link" href="https://ssd.jpl.nasa.gov/planets/approx_pos.html" target="_blank" rel="noopener noreferrer">NASA/JPL orbital model ↗</a>
+    </aside>
+    <div class="solar-caption"><strong>Drag to orbit · Scroll to zoom</strong><br>Orbit distances are proportional. Sun and planet sizes are enlarged; colors are illustrative.<br>Gold: Earth–Sun · Coral: Mars–Sun · Cyan: Earth–Mars</div>
+  </section>
+  <noscript><div class="hud-panel error-panel">JavaScript is required to display the Mars globe.</div></noscript>
+</body>
+</html>

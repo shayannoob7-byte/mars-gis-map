@@ -1,0 +1,11 @@
+# Local editor state and generated desktop preview
+.freebuff/
+preview.html
+Open Mars Globe.url
+
+# Local credentials and operating-system files
+.env
+.env.*
+!.env.example
+Thumbs.db
+.DS_Store

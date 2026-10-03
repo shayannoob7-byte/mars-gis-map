@@ -1,0 +1,141 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100vw; height: 100vh; overflow: hidden; background-color: #080c11; font-family: 'Consolas', 'Courier New', monospace; color: #eee8e3; }
+:root { color-scheme: dark; --accent: #ff8345; --muted: #b9b4b2; --orange: #ef652d; --amber: #ffd093; }
+[hidden] { display: none !important; }
+#solar-view { position: fixed; inset: 0; z-index: 3000; background: #02040b; }
+#solar-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#solar-canvas:active { cursor: grabbing; }
+#solar-view.is-returning, #solar-view.is-opening { overflow: hidden; pointer-events: none; }
+#solar-view.is-opening * { pointer-events: none; }
+.return-mars {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle at 30% 28%, #efb080 0%, #c77850 28%, #8e462f 58%, #341b19 85%, #140e10 100%);
+  box-shadow: inset -8px -5px 22px rgba(10, 5, 4, .35), 0 0 28px rgba(232, 124, 71, .12);
+}
+#solar-view.is-returning .solar-panel,
+#solar-view.is-returning .solar-caption,
+#solar-view.is-returning .solar-header { opacity: 0; transition: opacity .25s ease; }
+.solar-header { position: absolute; left: 26px; right: 26px; top: 22px; display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; pointer-events: none; }
+.solar-header h2 { color: #f0f4ff; font-size: 20px; }
+.solar-header .hud-btn { width: auto; margin: 0; pointer-events: auto; }
+.solar-panel { right: 24px; top: 115px; width: 300px; max-height: calc(100vh - 200px); overflow-y: auto; }
+#solar-date { width: 100%; padding: 10px; background: #111318; border: 1px solid #845037; border-radius: 4px; color: #eee8e3; font: inherit; }
+.solar-distances dt { color: var(--muted); margin-top: 18px; font-size: 12px; }
+.solar-distances dd { color: white; font-size: 16px; margin-top: 5px; line-height: 1.6; font-variant-numeric: tabular-nums; }
+.solar-distances .mars-line { color: #ff8d69; }
+.solar-distances .earth-line { color: #60e4ed; }
+.solar-distances .sun-line { color: #ffcf65; }
+.solar-caption { position: absolute; bottom: 22px; left: 26px; right: 26px; color: #9aacc2; font-size: 11px; line-height: 1.8; pointer-events: none; }
+.solar-caption strong { color: #d9e4f6; }
+@media (max-width: 720px) {
+  .solar-header { top: 12px; left: 12px; right: 12px; }
+  .solar-header h2 { font-size: 14px; }
+  .solar-header .eyebrow { font-size: 8px; }
+  .solar-header .hud-btn { font-size: 10px; padding: 7px; }
+  .solar-panel { top: auto; bottom: 80px; left: 12px; right: 12px; width: auto; max-height: 31vh; }
+  .solar-caption { bottom: 10px; left: 12px; right: 12px; font-size: 9px; }
+}
+#cesiumContainer { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+#cesiumContainer.profiler-active, #cesiumContainer.profiler-active canvas { cursor: crosshair; }
+.cesium-viewer-bottom, .cesium-viewer-animationContainer, .cesium-viewer-timelineContainer { display: none !important; }
+.hud-panel, #telemetry-bar, #control-panel { position: absolute; z-index: 1000; background: rgba(7, 11, 16, 0.94); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 121, 56, 0.3); border-radius: 8px; padding: 16px; box-shadow: 0 0 15px rgba(255, 121, 56, 0.15); }
+#telemetry-bar { top: 20px; left: 20px; width: 290px; pointer-events: auto; max-height: calc(100vh - 40px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255, 121, 56, 0.45) #111318; }
+.location-grid { margin: 10px 0; }
+#location-inspector .jump-grid { margin-top: 10px; }
+.station-location { margin: 0 0 10px; }
+#control-panel { top: 20px; right: 20px; width: 320px; max-height: 90vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255, 121, 56, 0.45) #111318; }
+#control-panel::-webkit-scrollbar { width: 6px; }
+#control-panel::-webkit-scrollbar-track { background: #111318; }
+#control-panel::-webkit-scrollbar-thumb { background: rgba(255, 121, 56, 0.45); border-radius: 4px; }
+h1, h2, h3 { color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+h1 { font-size: 18px; line-height: 1.4; }
+h2 { font-size: 14px; line-height: 1.4; }
+h3 { font-size: 12px; line-height: 1.4; }
+p { line-height: 1.55; }
+.eyebrow { margin-bottom: 8px; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+.telemetry-grid { display: grid; grid-template-columns: 1fr auto; gap: 7px 12px; font-size: 12px; line-height: 1.45; }
+.telemetry-grid dt { color: var(--muted); }
+.telemetry-grid dd { text-align: right; color: #eee8e3; font-variant-numeric: tabular-nums; }
+.panel-divider { height: 1px; margin: 13px 0; background: rgba(255, 121, 56, 0.18); }
+label { display: block; margin: 15px 0 7px; color: var(--muted); font-size: 12px; }
+select { display: block; width: 100%; background: #111318; border: 1px solid var(--accent); border-radius: 4px; color: #eee8e3; padding: 10px 8px; font-family: inherit; font-size: 12px; box-shadow: 0 0 8px rgba(255, 121, 56, 0.15); cursor: pointer; }
+select option { background: #111318; color: #eee8e3; }
+#hirise-opacity { display: block; width: 100%; accent-color: var(--accent); cursor: pointer; min-height: 28px; }
+#hirise-opacity-value { float: right; color: var(--accent); font-variant-numeric: tabular-nums; }
+.source-link { display: inline-block; margin-top: 10px; font-size: 11px; line-height: 1.6; }
+input:focus-visible { outline: 2px solid #ffffff; outline-offset: 3px; }
+.hud-btn { width: 100%; background: rgba(255, 121, 56, 0.1); border: 1px solid var(--accent); color: var(--accent); padding: 10px; border-radius: 4px; font-family: inherit; font-weight: bold; cursor: pointer; margin-top: 8px; transition: all 0.2s ease; font-size: 12px; line-height: 1.5; min-height: 42px; }
+.hud-btn:hover { background: rgba(255, 121, 56, 0.3); box-shadow: 0 0 10px var(--accent); }
+#profiler-btn.active, #profiler-btn[aria-pressed='true'] { background: #ff5533; border-color: #ff5533; color: #ffffff; }
+#profiler-btn.active:hover { background: #e64a2d; box-shadow: 0 0 10px rgba(255, 85, 51, 0.65); }
+.hud-btn.secondary { background: transparent; border-color: rgba(255, 121, 56, 0.4); color: #e0cbc0; }
+.hud-btn.secondary:hover { background: rgba(255, 121, 56, 0.12); }
+button:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid #ffffff; outline-offset: 3px; }
+.control-section { margin-top: 18px; padding-top: 15px; border-top: 1px solid rgba(255, 121, 56, 0.18); }
+.jump-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.jump-grid .hud-btn { margin-top: 0; padding: 8px 5px; }
+#inspector-panel { background: rgba(255, 121, 56, 0.035); border: 1px solid rgba(255, 121, 56, 0.2); border-radius: 5px; padding: 12px; }
+.measurement-list dt { margin-top: 11px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.measurement-list dt:first-child { margin-top: 0; }
+.measurement-list dd { margin-top: 4px; color: #ffffff; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; line-height: 1.5; }
+#surface-distance { color: var(--accent); font-size: 20px; font-weight: bold; }
+.help-text, .status-text { margin-top: 9px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.status-text { color: #dbc3b2; }
+.status-text.warning { color: #ffc185; }
+.navigation-help { margin-top: 15px; }
+.attribution { margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255, 121, 56, 0.15); color: var(--muted); font-size: 9px; line-height: 1.7; }
+a { color: var(--accent); text-underline-offset: 3px; }
+#site-popup { left: 20px; bottom: 24px; width: 340px; max-width: calc(100vw - 40px); max-height: 42vh; overflow-y: auto; padding-right: 38px; }
+#site-popup h2 { font-size: 16px; }
+.mission-name { margin-bottom: 10px; color: #ffffff; font-size: 13px; font-weight: bold; }
+#site-description { color: #d2ccca; font-size: 12px; }
+.coordinate-text { margin-top: 12px; color: var(--accent); font-size: 11px; }
+.close-btn { position: absolute; top: 7px; right: 7px; width: 30px; height: 30px; border: 0; border-radius: 4px; background: transparent; color: #eee8e3; font-size: 24px; cursor: pointer; }
+.close-btn:hover { background: rgba(255, 121, 56, 0.15); }
+.error-panel { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100vw - 32px)); z-index: 2000; border-color: #ff5533; font-size: 14px; line-height: 1.6; }
+@media (max-width: 720px) {
+  #telemetry-bar { top: 10px; left: 10px; width: 235px; padding: 12px; max-height: 34vh; overflow-y: auto; }
+  #control-panel { top: auto; right: 10px; bottom: 10px; width: min(320px, calc(100vw - 20px)); max-height: 46vh; padding: 12px; }
+  #site-popup { left: 10px; bottom: calc(46vh + 22px); width: min(340px, calc(100vw - 20px)); max-height: 28vh; padding: 12px 38px 12px 12px; }
+  h1 { font-size: 15px; }
+  .telemetry-grid { font-size: 11px; gap: 5px 8px; }
+}
+@media (max-height: 520px) and (min-width: 721px) {
+  #telemetry-bar { max-height: 48vh; overflow-y: auto; }
+  #site-popup { max-height: 35vh; bottom: 10px; }
+  #control-panel { top: 10px; max-height: calc(100vh - 20px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Mars mission theme: charcoal surfaces, copper accents and amber readings. */
+.hud-panel, #telemetry-bar, #control-panel { background: linear-gradient(135deg, rgba(23, 17, 17, .96), rgba(5, 11, 17, .96) 48%); border-color: rgba(196, 164, 146, .34); border-radius: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 176, 122, .08); }
+h1, h2, h3 { font-weight: 700; letter-spacing: 1.2px; }
+.hud-icon { width: 20px; height: 20px; flex: 0 0 20px; display: inline-block; vertical-align: middle; color: var(--accent); margin-right: 8px; }
+#telemetry-title, #location-title, #jump-title, #inspector-title { display: flex; align-items: center; gap: 6px; }
+#telemetry-title, #location-title { padding-bottom: 11px; border-bottom: 1px solid rgba(255, 131, 69, .48); }
+.heading-neutral { color: #f2edf0; }
+.telemetry-grid { border-left: 2px solid var(--accent); padding-left: 10px; }
+.telemetry-grid dd { color: var(--amber); }
+.telemetry-grid dt, .telemetry-grid dd { padding-bottom: 4px; border-bottom: 1px solid rgba(226, 196, 172, .05); }
+.panel-divider { background: linear-gradient(90deg, rgba(255, 131, 69, .65), rgba(255, 131, 69, .04)); }
+.hud-btn { color: #f3e9e2; background: linear-gradient(180deg, rgba(255, 137, 75, .07), rgba(11, 14, 20, .35)); border-color: #ca693b; border-radius: 7px; box-shadow: inset 0 1px 0 rgba(255, 194, 140, .08); transition: background .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.hud-btn:hover { background: rgba(255, 131, 69, .16); border-color: #ffb47d; box-shadow: 0 0 12px rgba(239, 101, 45, .22); }
+.jump-grid .hud-btn { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.jump-grid .hud-btn .hud-icon { width: 17px; height: 17px; flex-basis: 17px; margin: 0; }
+#profiler-btn.active, #profiler-btn[aria-pressed='true'] { background: #bc4826; border-color: #ffab70; }
+select { border-color: #ac603d; box-shadow: none; }
+#inspector-panel { border-color: rgba(191, 167, 155, .3); background: rgba(4, 9, 14, .55); border-radius: 8px; }
+#site-facts { border-left: 2px solid var(--accent); padding-left: 12px; margin-top: 14px; }
+#site-facts dd { color: #f3e8e0; }
+#site-coordinates { color: #ff9b5f; border-top: 1px solid rgba(255, 131, 69, .12); padding-top: 10px; }
+#site-source { color: #ff9b5f; }
+#control-panel, #telemetry-bar, #site-popup, .solar-panel { scrollbar-width: thin; scrollbar-color: #f47c40 #111319; }
+.hud-panel::-webkit-scrollbar { width: 7px; }
+.hud-panel::-webkit-scrollbar-track { background: #111319; }
+.hud-panel::-webkit-scrollbar-thumb, #control-panel::-webkit-scrollbar-thumb { background: linear-gradient(#ffa15b, #ed602b); border-radius: 5px; }
+button:focus-visible, select:focus-visible, a:focus-visible, input:focus-visible { outline-color: #ffd3a8; }
+#open-solar { border-color: #ed8a4e; background: linear-gradient(100deg, rgba(192, 76, 33, .25), rgba(24, 16, 17, .8)); }
