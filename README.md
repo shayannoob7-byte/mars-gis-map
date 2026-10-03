@@ -13,7 +13,7 @@ An interactive Mars globe and solar-system explorer built with vanilla HTML, CSS
 
 ## Run
 
-Serve this directory using a static web server and open `index.html` through its HTTP URL. No build step is required. An internet connection is needed for Cesium and remote imagery services.
+On Windows with Node.js installed, double-click `Open Mars Globe.cmd`. This starts a standalone local server at http://127.0.0.1:8765/ that continues running after Freebuff closes. After a computer restart, launch it again. Alternatively, serve this directory using any static web server. No build step is required. An internet connection is needed for Cesium and remote imagery services.
 
 ## Files
 
