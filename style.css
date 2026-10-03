@@ -88,6 +88,17 @@ button:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid
 .attribution { margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255, 121, 56, 0.15); color: var(--muted); font-size: 9px; line-height: 1.7; }
 a { color: var(--accent); text-underline-offset: 3px; }
 #site-popup { left: 20px; bottom: 24px; width: 340px; max-width: calc(100vw - 40px); max-height: 42vh; overflow-y: auto; padding-right: 38px; }
+/* Curiosity REMS overview tab */
+#rems-panel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100vw - 32px)); max-height: min(640px, calc(100vh - 48px)); overflow-y: auto; z-index: 2000; padding: 18px 40px 18px 18px; }
+#rems-panel h2 { font-size: 16px; }
+#rems-panel .station-location { margin: 0 0 12px; }
+.rems-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+.rems-table th { color: var(--muted); text-align: left; font-weight: normal; font-size: 10px; text-transform: uppercase; letter-spacing: .6px; padding: 5px 6px; border-bottom: 1px solid rgba(255, 131, 69, .35); }
+.rems-table td { padding: 5px 6px; border-bottom: 1px solid rgba(226, 196, 172, .07); color: var(--amber); font-variant-numeric: tabular-nums; }
+.rems-table th:not(:first-child), .rems-table td:not(:first-child) { text-align: right; }
+.rems-table tbody tr:last-child td { border-bottom: 0; }
+.rems-actions { margin-top: 12px; }
+.rems-actions .hud-btn { margin-top: 0; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; }
 #site-popup h2 { font-size: 16px; }
 .mission-name { margin-bottom: 10px; color: #ffffff; font-size: 13px; font-weight: bold; }
 #site-description { color: #d2ccca; font-size: 12px; }
@@ -99,6 +110,9 @@ a { color: var(--accent); text-underline-offset: 3px; }
   #telemetry-bar { top: 10px; left: 10px; width: 235px; padding: 12px; max-height: 34vh; overflow-y: auto; }
   #control-panel { top: auto; right: 10px; bottom: 10px; width: min(320px, calc(100vw - 20px)); max-height: 46vh; padding: 12px; }
   #site-popup { left: 10px; bottom: calc(46vh + 22px); width: min(340px, calc(100vw - 20px)); max-height: 28vh; padding: 12px 38px 12px 12px; }
+  #rems-panel { width: calc(100vw - 20px); max-height: calc(100vh - 30px); padding: 14px 36px 14px 14px; }
+  .rems-table { font-size: 10px; }
+  .rems-table th, .rems-table td { padding: 4px 4px; }
   h1 { font-size: 15px; }
   .telemetry-grid { font-size: 11px; gap: 5px 8px; }
 }
@@ -133,7 +147,7 @@ select { border-color: #ac603d; box-shadow: none; }
 #site-facts dd { color: #f3e8e0; }
 #site-coordinates { color: #ff9b5f; border-top: 1px solid rgba(255, 131, 69, .12); padding-top: 10px; }
 #site-source { color: #ff9b5f; }
-#control-panel, #telemetry-bar, #site-popup, .solar-panel { scrollbar-width: thin; scrollbar-color: #f47c40 #111319; }
+#control-panel, #telemetry-bar, #site-popup, #rems-panel, .solar-panel { scrollbar-width: thin; scrollbar-color: #f47c40 #111319; }
 .hud-panel::-webkit-scrollbar { width: 7px; }
 .hud-panel::-webkit-scrollbar-track { background: #111319; }
 .hud-panel::-webkit-scrollbar-thumb, #control-panel::-webkit-scrollbar-thumb { background: linear-gradient(#ffa15b, #ed602b); border-radius: 5px; }

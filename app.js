@@ -142,14 +142,21 @@
     inspectLocation(C.Cartographic.fromDegrees(site.lon, site.lat), site);
   }));
   viewer.camera.setView({ destination: marsPosition(50, 15, 9500000), orientation: { heading: 0, pitch: -C.Math.PI_OVER_TWO, roll: 0 } });
-  // Bounds, matrix identifiers and maximum levels verified against each
-  // NASA Mars Trek WMTS capabilities document. These are regional mosaics,
-  // not global HiRISE coverage. No full-resolution mosaic download needed.
+  // Coverage bounds, TileMatrixSet identifiers and maximum levels come from
+  // each NASA Mars Trek WMTS GetCapabilities document, fetched and parsed at
+  // run time; every tile URL is validated against that document before it is
+  // requested. Embedded values below match those documents (re-verified
+  // 2026-10-03) and are used only when the fetch fails. These are regional
+  // mosaics, not global HiRISE coverage.
   const HIRISE_SITES = {
     gale: {
       name: 'Gale Crater · Curiosity', product: 'curiosity_hirise_mosaic',
       bounds: [137.1224669, -4.9254743, 137.7298129, -4.2489588],
-      longitude: 137.44, latitude: -4.58, maximumLevel: 16
+      longitude: 137.44, latitude: -4.58, maximumLevel: 16,
+      // Wider CTX mosaic of Gale Crater: fills coverage outside the narrow
+      // HiRISE strip when viewing the crater as a whole.
+      ctx: { product: 'Gale_CTX_BlockAdj_dd',
+        bounds: [135.1842593, -6.5732988, 139.2413012, -2.8077809], maximumLevel: 12 }
     },
     spirit: {
       name: 'Gusev Crater · Spirit', product: 'spirit_hirise_mosaic',
@@ -162,17 +169,130 @@
       longitude: -5.3, latitude: -2.3, maximumLevel: 17
     }
   };
-  let hiriseLayer = null;
-  let removeHiriseErrorListener = null;
-  let selectedHirise = null;
+  const WMTS_ROOT = 'https://trek.nasa.gov/tiles/Mars/EQ';
+  const wmtsSpecCache = new Map();
+  // Parse one OGC WMTS GetCapabilities document into the values that gate
+  // tile requests: coverage bounds, TileMatrixSet id, matrix size per level.
+  function parseWmtsCapabilities(product, xmlText) {
+    const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
+    if (xml.querySelector('parsererror')) throw new Error('GetCapabilities parse error.');
+    const named = (node, name) => node.getElementsByTagNameNS('*', name)[0];
+    const bbox = named(xml, 'WGS84BoundingBox');
+    if (!bbox) throw new Error('GetCapabilities has no WGS84BoundingBox.');
+    const corner = (name) => named(bbox, name).textContent.trim().split(/\s+/).map(Number);
+    const lower = corner('LowerCorner'), upper = corner('UpperCorner');
+    const link = named(xml, 'TileMatrixSetLink');
+    const matrixSet = link ? named(link, 'TileMatrixSet')?.textContent.trim() : null;
+    const matrices = new Map();
+    for (const node of xml.getElementsByTagNameNS('*', 'TileMatrix')) {
+      const level = Number(named(node, 'Identifier').textContent);
+      const width = Number(named(node, 'MatrixWidth').textContent);
+      const height = Number(named(node, 'MatrixHeight').textContent);
+      if (Number.isFinite(level) && width > 0 && height > 0) matrices.set(level, { width, height });
+    }
+    if (!matrices.size) throw new Error('GetCapabilities has no TileMatrix entries.');
+    if (![...lower, ...upper].every(Number.isFinite)) throw new Error('GetCapabilities has an invalid bounding box.');
+    return { product, tileMatrixSet: matrixSet || 'default028mm',
+      bounds: [lower[0], lower[1], upper[0], upper[1]],
+      matrices, maximumLevel: Math.max(...matrices.keys()) };
+  }
+  // Cached promise. Failures are evicted so the next selection retries.
+  function loadWmtsSpec(product) {
+    if (wmtsSpecCache.has(product)) return wmtsSpecCache.get(product);
+    const pending = fetch(`${WMTS_ROOT}/${product}/1.0.0/WMTSCapabilities.xml`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`GetCapabilities returned HTTP ${response.status}.`);
+        return response.text();
+      })
+      .then((text) => parseWmtsCapabilities(product, text));
+    wmtsSpecCache.set(product, pending);
+    pending.catch(() => wmtsSpecCache.delete(product));
+    return pending;
+  }
+  // Fallback spec built from the embedded, capabilities-verified constants.
+  function embeddedWmtsSpec(source) {
+    const matrices = new Map();
+    for (let level = 0; level <= source.maximumLevel; level++) {
+      matrices.set(level, { width: 2 ** (level + 1), height: 2 ** level });
+    }
+    return { product: source.product, tileMatrixSet: 'default028mm',
+      bounds: source.bounds, matrices, maximumLevel: source.maximumLevel };
+  }
+  // Valid row/column window at one level. The advertised grid is
+  // equirectangular with TopLeftCorner -180/90, so rows run north to south.
+  function wmtsTileRange(spec, level) {
+    const matrix = spec.matrices.get(level);
+    if (!matrix) return null;
+    const [west, south, east, north] = spec.bounds;
+    const clamp = (value, size) => Math.min(size - 1, Math.max(0, value));
+    return {
+      rowMin: clamp(Math.floor((90 - north) / 180 * matrix.height), matrix.height),
+      rowMax: clamp(Math.floor((90 - south) / 180 * matrix.height), matrix.height),
+      columnMin: clamp(Math.floor((west + 180) / 360 * matrix.width), matrix.width),
+      columnMax: clamp(Math.floor((east + 180) / 360 * matrix.width), matrix.width)
+    };
+  }
+  // The only place a HiRISE/CTX tile URL is produced. Coordinates outside
+  // the matrix bounds defined by GetCapabilities return null, and the caller
+  // answers with a transparent tile instead of a URL that would 404.
+  function wmtsTileUrl(spec, level, row, column) {
+    const range = wmtsTileRange(spec, level);
+    if (!range || row < range.rowMin || row > range.rowMax ||
+        column < range.columnMin || column > range.columnMax) return null;
+    return `${WMTS_ROOT}/${spec.product}/1.0.0/default/${spec.tileMatrixSet}/${level}/${row}/${column}.png`;
+  }
+  let transparentTile = null;
+  function blankTile() {
+    if (!transparentTile) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      transparentTile = new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = canvas.toDataURL('image/png');
+      });
+    }
+    return transparentTile;
+  }
+  // Wraps a provider so every request is validated against GetCapabilities
+  // before a URL may be built for it.
+  function validatedProvider(spec, options) {
+    const provider = new C.UrlTemplateImageryProvider(options);
+    const buildUrl = provider.requestImage.bind(provider);
+    provider.requestImage = (column, row, level) =>
+      wmtsTileUrl(spec, level, row, column) ? buildUrl(column, row, level) : blankTile();
+    return provider;
+  }
+  function trekProviderOptions(spec, credit) {
+    return {
+      url: `${WMTS_ROOT}/${spec.product}/1.0.0/default/${spec.tileMatrixSet}/{z}/{y}/{x}.png`,
+      tilingScheme: imageryTilingScheme,
+      rectangle: C.Rectangle.fromDegrees(...spec.bounds),
+      tileWidth: 256, tileHeight: 256, minimumLevel: 0,
+      maximumLevel: spec.maximumLevel, hasAlphaChannel: true, credit
+    };
+  }
+  // Exposed for verification, following the MarsSolarModel convention.
+  window.MarsWmts = Object.freeze({
+    parseWmtsCapabilities, loadWmtsSpec, embeddedWmtsSpec, wmtsTileRange, wmtsTileUrl
+  });
+  let hiriseLayer = null, ctxLayer = null;
+  let removeHiriseErrorListener = null, removeCtxErrorListener = null;
+  let selectedHirise = null, hiriseRequest = 0;
   function flyToHirise() {
     if (selectedHirise) flyToMars(selectedHirise.latitude, selectedHirise.longitude, 9000);
   }
-  function selectHirise(key) {
-    removeHiriseErrorListener?.();
-    removeHiriseErrorListener = null;
+  function clearHiriseLayers() {
+    removeHiriseErrorListener?.(); removeHiriseErrorListener = null;
+    removeCtxErrorListener?.(); removeCtxErrorListener = null;
     if (hiriseLayer) viewer.imageryLayers.remove(hiriseLayer, true);
-    hiriseLayer = null;
+    if (ctxLayer) viewer.imageryLayers.remove(ctxLayer, true);
+    hiriseLayer = null; ctxLayer = null;
+  }
+  async function selectHirise(key) {
+    const request = ++hiriseRequest;
+    clearHiriseLayers();
     selectedHirise = HIRISE_SITES[key] || null;
     $('hirise-controls').hidden = !selectedHirise;
     if (!selectedHirise) {
@@ -180,14 +300,32 @@
       return;
     }
     const site = selectedHirise;
-    const provider = new C.UrlTemplateImageryProvider({
-      url: `https://trek.nasa.gov/tiles/Mars/EQ/${site.product}/1.0.0/default/default028mm/{z}/{y}/{x}.png`,
-      tilingScheme: imageryTilingScheme,
-      rectangle: C.Rectangle.fromDegrees(...site.bounds),
-      tileWidth: 256, tileHeight: 256, minimumLevel: 0,
-      maximumLevel: site.maximumLevel, hasAlphaChannel: true,
-      credit: 'HiRISE: NASA / JPL-Caltech / University of Arizona · NASA Mars Trek'
-    });
+    setStatus('hirise-status', `${site.name} · Validating coverage against NASA's WMTS GetCapabilities…`);
+    let spec = null, ctxSpec = null;
+    try {
+      spec = await loadWmtsSpec(site.product);
+      if (site.ctx) ctxSpec = await loadWmtsSpec(site.ctx.product);
+    } catch (error) {
+      console.warn('WMTS GetCapabilities unavailable; using embedded coverage limits.', error);
+    }
+    // A newer selection (or powering the overlay off) supersedes this one.
+    if (disposed || request !== hiriseRequest || selectedHirise !== site) return;
+    const published = Boolean(spec);
+    spec = spec || embeddedWmtsSpec(site);
+    if (site.ctx) ctxSpec = ctxSpec || embeddedWmtsSpec(site.ctx);
+    if (ctxSpec) {
+      const ctxProvider = validatedProvider(ctxSpec, trekProviderOptions(
+        ctxSpec, 'CTX: NASA / JPL-Caltech / MSSS · NASA Mars Trek'));
+      // Inserted directly above the basemap, below the HiRISE strip.
+      ctxLayer = viewer.imageryLayers.addImageryProvider(ctxProvider, 1);
+      removeCtxErrorListener = ctxProvider.errorEvent.addEventListener(() => {
+        if (!disposed && ctxLayer) {
+          setStatus('hirise-status', `${site.name} · CTX tiles are unavailable; wider coverage falls back to the global basemap.`, true);
+        }
+      });
+    }
+    const provider = validatedProvider(spec, trekProviderOptions(
+      spec, 'HiRISE: NASA / JPL-Caltech / University of Arizona · NASA Mars Trek'));
     const layer = viewer.imageryLayers.addImageryProvider(provider);
     hiriseLayer = layer;
     layer.alpha = Number($('hirise-opacity').value) / 100;
@@ -197,7 +335,7 @@
       }
     });
     $('hirise-source').href = `https://trek.nasa.gov/mars/TrekWS/rest/cat/metadata/fgdc/html?label=${site.product}`;
-    setStatus('hirise-status', `${site.name} · HiRISE enabled. Zoom in to explore the surface.`);
+    setStatus('hirise-status', `${site.name} · HiRISE enabled${ctxSpec ? ', CTX fills coverage outside the strip' : ''} · ${published ? 'tiles validated against WMTS GetCapabilities' : 'GetCapabilities unreachable, using embedded coverage limits'}. Zoom in to explore the surface.`);
     closeSitePopup();
     flyToHirise();
   }
@@ -229,7 +367,7 @@
   }
   listen($('profiler-btn'), 'click', () => setProfiler(!profilerEnabled));
   listen($('clear-profiler'), 'click', clearMeasurement);
-  listen(document, 'keydown', (event) => { if (event.key === 'Escape') { if (profilerEnabled) setProfiler(false); closeSitePopup(); } });
+  listen(document, 'keydown', (event) => { if (event.key === 'Escape') { if (profilerEnabled) setProfiler(false); closeSitePopup(); closeRems(); } });
   function addMeasurementMarker(point, label) {
     const height = Math.max(1000, MARS.cartesianToCartographic(viewer.camera.positionWC).height);
     const radius = C.Math.clamp(height * 0.0025, 150, 9000);
@@ -441,11 +579,103 @@
   }
   loadWeather();
   const weatherRefresh = window.setInterval(() => { if (!document.hidden) loadWeather(); }, 30 * 60 * 1000);
+  // Curiosity REMS overview tab. Source: NASA's public outreach weather feed
+  // (CORS-open, no key). It publishes validated sol averages days to weeks
+  // after the sol, so the panel states the lag instead of implying live data.
+  const REMS_URL = 'https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json';
+  const REMS_CACHE_KEY = 'mars-rems-observations-v1';
+  const REMS_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
+  const REMS_HISTORY_ROWS = 10;
+  let remsRecords = null, remsLastCheck = 0, remsInFlight = false, remsPreviousFocus = null;
+  function remsValue(value) {
+    return value !== undefined && value !== null && value !== '' && value !== '--' ? String(value) : '—';
+  }
+  function remsLagDays(date) {
+    const time = Date.parse(date);
+    return Number.isFinite(time) ? Math.max(0, Math.round((Date.now() - time) / 86400000)) : null;
+  }
+  function renderRems(status, warning = false) {
+    const latest = remsRecords?.[0];
+    if (!latest) return;
+    $('rems-sol').textContent = remsValue(latest.sol);
+    $('rems-date').textContent = remsValue(latest.terrestrial_date);
+    $('rems-ls').textContent = `${remsValue(latest.ls)}°${latest.season ? ` · ${latest.season}` : ''}`;
+    $('rems-temps').textContent = `${remsValue(latest.min_temp)} °C / ${remsValue(latest.max_temp)} °C`;
+    $('rems-ground').textContent = `${remsValue(latest.min_gts_temp)} °C / ${remsValue(latest.max_gts_temp)} °C`;
+    $('rems-pressure').textContent = latest.pressure && latest.pressure !== '--'
+      ? `${latest.pressure} Pa${latest.pressure_string ? ` · ${latest.pressure_string}` : ''}` : '—';
+    $('rems-sky').textContent = remsValue(latest.atmo_opacity);
+    $('rems-uv').textContent = remsValue(latest.local_uv_irradiance_index);
+    $('rems-sun').textContent = `${remsValue(latest.sunrise)} · ${remsValue(latest.sunset)}`;
+    const rows = remsRecords.slice(0, REMS_HISTORY_ROWS).map((record) => {
+      const tr = document.createElement('tr');
+      [record.sol, record.terrestrial_date, record.min_temp, record.max_temp, record.pressure].forEach((value) => {
+        const td = document.createElement('td');
+        td.textContent = remsValue(value);
+        tr.append(td);
+      });
+      return tr;
+    });
+    $('rems-history').replaceChildren(...rows);
+    setStatus('rems-status', status, warning);
+  }
+  async function loadRems(force = false) {
+    if (remsInFlight) return;
+    if (!force && remsRecords && Date.now() - remsLastCheck < REMS_CHECK_INTERVAL) {
+      renderRems('Saved observations · NASA feed checked every 6 hours.');
+      return;
+    }
+    remsInFlight = true;
+    setStatus('rems-status', 'Requesting NASA REMS observations…');
+    try {
+      const response = await fetch(REMS_URL, { credentials: 'omit', headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`NASA feed returned HTTP ${response.status}`);
+      const payload = await response.json();
+      const soles = Array.isArray(payload?.soles) ? payload.soles : [];
+      const records = soles.filter((record) => record && /^\d+$/.test(String(record.sol)) &&
+        Number.isFinite(Date.parse(record.terrestrial_date)));
+      if (!records.length) throw new Error('Feed returned no usable sols.');
+      remsRecords = records;
+      remsLastCheck = Date.now();
+      // Trim the cache to the displayed window so storage stays small.
+      try { localStorage.setItem(REMS_CACHE_KEY, JSON.stringify({ at: remsLastCheck, records: records.slice(0, 60) })); } catch (error) { /* Optional cache. */ }
+      const lag = remsLagDays(records[0].terrestrial_date);
+      renderRems(`Live NASA feed · newest sol ${records[0].sol} (${records[0].terrestrial_date})${lag !== null ? ` · ${lag} days behind today` : ''}.`);
+    } catch (error) {
+      if (remsRecords) renderRems('NASA feed unreachable; showing saved observations.', true);
+      else setStatus('rems-status', 'NASA REMS feed unreachable. Check the connection, then use Refresh feed.', true);
+    } finally { remsInFlight = false; }
+  }
+  // Restore saved observations so the tab has content before the first fetch.
+  try {
+    const cached = JSON.parse(localStorage.getItem(REMS_CACHE_KEY) || 'null');
+    if (cached && Number.isFinite(cached.at) && Array.isArray(cached.records) && cached.records.length &&
+        /^\d+$/.test(String(cached.records[0]?.sol))) {
+      remsRecords = cached.records;
+      remsLastCheck = cached.at;
+    }
+  } catch (error) { /* Optional cache. */ }
+  function closeRems() {
+    if ($('rems-panel').hidden) return;
+    $('rems-panel').hidden = true;
+    remsPreviousFocus?.focus?.();
+  }
+  function openRems() {
+    remsPreviousFocus = document.activeElement;
+    $('rems-panel').hidden = false;
+    closeSitePopup();
+    $('rems-panel').scrollTop = 0;
+    $('close-rems').focus();
+    loadRems();
+  }
+  listen($('open-rems'), 'click', openRems);
+  listen($('close-rems'), 'click', closeRems);
+  listen($('rems-refresh'), 'click', () => loadRems(true));
   function dispose() {
     if (disposed) return; disposed = true;
     window.clearInterval(weatherRefresh); weatherController?.abort();
     if (telemetryFrame !== null) cancelAnimationFrame(telemetryFrame);
-    cleanups.forEach((cleanup) => cleanup()); removeCameraListener(); removeImageryErrorListener?.(); removeHiriseErrorListener?.();
+    cleanups.forEach((cleanup) => cleanup()); removeCameraListener(); removeImageryErrorListener?.(); removeHiriseErrorListener?.(); removeCtxErrorListener?.();
     if (!handler.isDestroyed()) handler.destroy();
     if (!viewer.isDestroyed()) viewer.destroy();
   }

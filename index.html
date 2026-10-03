@@ -52,6 +52,7 @@
     <p class="eyebrow">NASA Space Apps · Mars Explorer</p>
     <h1 id="command-title">3D MARS GLOBE COMMAND CENTER</h1>
     <button id="open-solar" class="hud-btn" type="button">Explore Solar System ↗</button>
+    <button id="open-rems" class="hud-btn" type="button">Realtime Weather Data (Curiosity REMS) ↗</button>
     <label for="basemap-select">Surface imagery</label>
     <select id="basemap-select">
       <option value="viking">USGS Viking Color Mosaic</option>
@@ -111,6 +112,35 @@
     <dl id="site-facts" class="measurement-list" hidden></dl>
     <p id="site-coordinates" class="coordinate-text"></p>
     <a id="site-source" class="source-link" target="_blank" rel="noopener noreferrer" hidden>NASA overview and measurements ↗</a>
+  </section>
+  <section id="rems-panel" class="hud-panel" role="dialog" aria-labelledby="rems-title" hidden>
+    <button id="close-rems" class="close-btn" type="button" aria-label="Close weather overview">×</button>
+    <p class="eyebrow">NASA · Mars Science Laboratory · Gale Crater</p>
+    <h2 id="rems-title">Realtime Weather Data (Curiosity REMS)</h2>
+    <p class="help-text station-location">Curiosity's Rover Environmental Monitoring Station · 4.58°S, 137.44°E</p>
+    <dl class="telemetry-grid">
+      <dt>Sol</dt><dd id="rems-sol">—</dd>
+      <dt>Earth date</dt><dd id="rems-date">—</dd>
+      <dt>Solar longitude · season</dt><dd id="rems-ls">—</dd>
+      <dt>Air temperature · low / high</dt><dd id="rems-temps">—</dd>
+      <dt>Ground temperature · low / high</dt><dd id="rems-ground">—</dd>
+      <dt>Pressure</dt><dd id="rems-pressure">—</dd>
+      <dt>Sky</dt><dd id="rems-sky">—</dd>
+      <dt>UV index</dt><dd id="rems-uv">—</dd>
+      <dt>Sunrise · sunset</dt><dd id="rems-sun">—</dd>
+    </dl>
+    <p id="rems-status" class="status-text" role="status">Open this overview to load NASA's REMS feed.</p>
+    <div class="panel-divider"></div>
+    <h3>Recent sols</h3>
+    <table class="rems-table">
+      <thead><tr><th>Sol</th><th>Earth date</th><th>Low</th><th>High</th><th>Pressure</th></tr></thead>
+      <tbody id="rems-history"></tbody>
+    </table>
+    <p class="help-text">Curiosity measures this weather with REMS at Gale Crater. NASA publishes validated sol averages through its public Mars weather feed, typically days to weeks after the sol they describe, so this overview is near-real-time rather than instantaneous. Wind speed and humidity are not included in this feed.</p>
+    <div class="jump-grid rems-actions">
+      <button id="rems-refresh" class="hud-btn" type="button">Refresh feed</button>
+      <a class="hud-btn secondary" href="https://mars.nasa.gov/rss/api/?feed=weather&amp;category=msl&amp;feedtype=json" target="_blank" rel="noopener noreferrer">NASA REMS source ↗</a>
+    </div>
   </section>
   <div id="fatal-error" class="hud-panel error-panel" role="alert" hidden></div>
   <div id="cesium-credits" hidden></div>

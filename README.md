@@ -8,6 +8,7 @@ An interactive Mars globe and solar-system explorer built with vanilla HTML, CSS
 - Landing-site markers, geographic overviews, and quick camera jumps.
 - Two-point distance measurement calibrated for Mars.
 - Archived NASA InSight weather observations, with source dates and location context.
+- A separate **Realtime Weather Data (Curiosity REMS)** overview tab with current sol conditions (air/ground temperature, pressure, sky, UV, sun times) and a recent-sols table from NASA's public Curiosity weather feed.
 - A solar-system view with approximate orbital positions and Sun–Earth–Mars distances.
 - Animated transitions between Mars and the solar-system view, with reduced-motion support.
 
@@ -25,6 +26,6 @@ On Windows with Node.js installed, double-click `Open Mars Globe.cmd`. This star
 
 ## Data limitations
 
-InSight observations are historical station measurements, not live weather or measurements for arbitrary points on Mars. Solar-system distances use an approximate NASA/JPL orbital model; planet display sizes are enlarged for visibility. Imagery availability depends on upstream services.
+InSight observations are historical station measurements, not live weather or measurements for arbitrary points on Mars. The Curiosity REMS tab reads NASA's public outreach feed, which publishes validated sol averages days to weeks after the sol; it is near-real-time rather than instantaneous, and that feed omits wind speed and humidity. Solar-system distances use an approximate NASA/JPL orbital model; planet display sizes are enlarged for visibility. Imagery availability depends on upstream services.
 
 See [HiRISE notes](HIRISE.md) and [weather data notes](data/README.md) for further details.
