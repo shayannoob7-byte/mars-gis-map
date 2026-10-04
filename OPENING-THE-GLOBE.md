@@ -12,6 +12,8 @@ Opening index.html directly from File Explorer uses the file:// protocol. Browse
 
 https://github.com/CesiumGS/cesium/blob/main/Documentation/OfflineGuide/README.md
 
-Keep the launcher, local-server.cjs, index.html, style.css, app.js, solar-system.js, and data folder together. Internet access is required for Cesium and remote imagery. Source changes appear when you refresh the browser.
+Keep the launcher, local-server.cjs, index.html, style.css, app.js, data-services.js, weather.js, solar-system.js, and data folder together. Internet access is required for Cesium and remote imagery. Source changes appear when you refresh the browser.
 
-The Freebuff preview uses preview.html, which embeds the source CSS and JavaScript because the built-in single-HTML preview does not serve sibling assets. Rebuild that preview after changing the source files; a normal static server can serve index.html and its sibling files directly.
+The Freebuff preview uses preview.html, which embeds the source CSS and JavaScript because the built-in single-HTML preview does not serve sibling assets. Run `node scripts/build-preview.cjs` to rebuild that preview after changing the source files; a normal static server can serve index.html and its sibling files directly.
+
+After updating the local server itself, restart its Node process so new asset routes are available. Other source changes only need a browser refresh.

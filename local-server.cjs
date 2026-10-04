@@ -7,13 +7,15 @@ const files = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
+  ['/data-services.js', ['data-services.js', 'text/javascript; charset=utf-8']],
+  ['/weather.js', ['weather.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/solar-system.js', ['solar-system.js', 'text/javascript; charset=utf-8']],
   ['/data/insight-weather-response.json', ['data/insight-weather-response.json', 'application/json']],
   ['/HIRISE.md', ['HIRISE.md', 'text/plain; charset=utf-8']],
   ['/data/README.md', ['data/README.md', 'text/plain; charset=utf-8']]
 ]);
-http.createServer((req, res) => {
+function createServer() { return http.createServer((req, res) => {
   if (!['GET', 'HEAD'].includes(req.method)) {
     res.writeHead(405, { Allow: 'GET, HEAD' }); res.end(); return;
   }
@@ -32,4 +34,6 @@ http.createServer((req, res) => {
     });
     res.end(req.method === 'HEAD' ? undefined : data);
   });
-}).listen(port, '127.0.0.1');
+}); }
+if (require.main === module) createServer().listen(port, '127.0.0.1');
+module.exports = { createServer };

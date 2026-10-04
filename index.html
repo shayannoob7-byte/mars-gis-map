@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Widgets/widgets.css">
   <link rel="stylesheet" href="style.css">
   <script defer src="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Cesium.js"></script>
+  <script defer src="data-services.js"></script>
+  <script defer src="weather.js"></script>
   <script defer src="app.js"></script>
   <script defer src="solar-system.js"></script>
 </head>
@@ -29,7 +31,7 @@
         <dt>Longitude</dt><dd id="selected-lon">—</dd>
         <dt>To InSight station</dt><dd id="station-distance">—</dd>
       </dl>
-      <p id="location-weather" class="status-text">Weather observations are available only at the InSight station in this project.</p>
+      <p id="location-weather" class="status-text">This panel shows archived InSight station observations. Latest Available Curiosity Weather provides separate Gale Crater observations; neither station describes arbitrary points on Mars.</p>
       <div class="jump-grid">
         <button id="inspect-insight" class="hud-btn" type="button">Inspect InSight</button>
         <button id="clear-location" class="hud-btn secondary" type="button">Clear Selection</button>
@@ -52,7 +54,7 @@
     <p class="eyebrow">NASA Space Apps · Mars Explorer</p>
     <h1 id="command-title">3D MARS GLOBE COMMAND CENTER</h1>
     <button id="open-solar" class="hud-btn" type="button">Explore Solar System ↗</button>
-    <button id="open-rems" class="hud-btn" type="button">Realtime Weather Data (Curiosity REMS) ↗</button>
+    <button id="open-rems" class="hud-btn" type="button">Latest Available Curiosity Weather ↗</button>
     <label for="basemap-select">Surface imagery</label>
     <select id="basemap-select">
       <option value="viking">USGS Viking Color Mosaic</option>
@@ -73,13 +75,13 @@
         <label for="hirise-opacity">Overlay opacity <output id="hirise-opacity-value" for="hirise-opacity">100%</output></label>
         <input id="hirise-opacity" type="range" min="0" max="100" step="5" value="100">
         <button id="hirise-fly" class="hud-btn" type="button">Return to HiRISE Site</button>
-        <p class="help-text">Detailed grayscale imagery covers only the selected mosaic footprint. Gaps show the global basemap. This overlay does not add terrain elevation.</p>
+        <p class="help-text">Detailed grayscale imagery covers only the selected mosaic footprint. Gaps show CTX imagery at Gale where available, or the global basemap. This overlay does not add terrain elevation.</p>
         <a id="hirise-source" class="source-link" target="_blank" rel="noopener noreferrer">NASA dataset metadata ↗</a>
         <p class="help-text">HiRISE: NASA / JPL-Caltech / University of Arizona · Served by NASA Mars Trek.</p>
       </div>
     </section>
-    <button id="profiler-btn" class="hud-btn" type="button" aria-pressed="false" aria-controls="inspector-panel">Toggle 3D 2-Point Terrain &amp; Distance Profiler</button>
-    <p id="profiler-instructions" class="help-text">Enable the profiler, then select two points on Mars.</p>
+    <button id="profiler-btn" class="hud-btn" type="button" aria-pressed="false" aria-controls="inspector-panel">Measure Distance Between Two Points</button>
+    <p id="profiler-instructions" class="help-text">Enable the measurement tool, then select two points on Mars.</p>
     <section class="control-section" aria-labelledby="jump-title">
       <h2 id="jump-title"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15 4 20l1-6M9 15l-3-3C9 6 15 3 21 3c0 6-3 12-9 15l-3-3Zm3 3 6 1-5 3"/><circle cx="15" cy="9" r="2"/></svg>Quick Jump</h2>
       <div class="jump-grid">
@@ -102,7 +104,7 @@
       <p id="measurement-note" class="help-text">Imagery only: terrain elevations and slope are unavailable. Surface measurements exclude terrain relief.</p>
       <button id="clear-profiler" class="hud-btn secondary" type="button">Clear Measurement</button>
     </section>
-    <p class="help-text navigation-help">Drag to rotate · Scroll to zoom · Ctrl + drag to tilt. Select a landing-site marker for mission details. Press Escape to exit the profiler.</p>
+    <p class="help-text navigation-help">Drag to rotate · Scroll to zoom · Ctrl + drag to tilt. Select a landing-site marker for mission details. Press Escape to exit the measurement tool.</p>
     <footer class="attribution">Rendering: <a href="https://cesium.com/" target="_blank" rel="noopener noreferrer">CesiumJS</a> · Viking imagery: <a href="https://astro.arcgis.com/arcgis/rest/services/OnMars/MDIM/MapServer" target="_blank" rel="noopener noreferrer">NASA / JPL / USGS / Esri</a> · MOLA: <a href="https://planetarymaps.usgs.gov/" target="_blank" rel="noopener noreferrer">NASA / USGS Astrogeology</a> · Weather: <a href="https://api.nasa.gov/" target="_blank" rel="noopener noreferrer">NASA</a></footer>
   </aside>
   <section id="site-popup" class="hud-panel" role="dialog" aria-labelledby="site-title" hidden>
@@ -116,7 +118,7 @@
   <section id="rems-panel" class="hud-panel" role="dialog" aria-labelledby="rems-title" hidden>
     <button id="close-rems" class="close-btn" type="button" aria-label="Close weather overview">×</button>
     <p class="eyebrow">NASA · Mars Science Laboratory · Gale Crater</p>
-    <h2 id="rems-title">Realtime Weather Data (Curiosity REMS)</h2>
+    <h2 id="rems-title">Latest Available Curiosity Weather</h2>
     <p class="help-text station-location">Curiosity's Rover Environmental Monitoring Station · 4.58°S, 137.44°E</p>
     <dl class="telemetry-grid">
       <dt>Sol</dt><dd id="rems-sol">—</dd>
@@ -133,10 +135,10 @@
     <div class="panel-divider"></div>
     <h3>Recent sols</h3>
     <table class="rems-table">
-      <thead><tr><th>Sol</th><th>Earth date</th><th>Low</th><th>High</th><th>Pressure</th></tr></thead>
+      <thead><tr><th>Sol</th><th>Earth date</th><th>Low °C</th><th>High °C</th><th>Pressure Pa</th></tr></thead>
       <tbody id="rems-history"></tbody>
     </table>
-    <p class="help-text">Curiosity measures this weather with REMS at Gale Crater. NASA publishes validated sol averages through its public Mars weather feed, typically days to weeks after the sol they describe, so this overview is near-real-time rather than instantaneous. Wind speed and humidity are not included in this feed.</p>
+    <p class="help-text">Curiosity measures this weather with REMS at Gale Crater. NASA publishes delayed observations through its public Mars weather feed. Temperature fields show daily minima and maxima; pressure is a daily average. Check the observation date and age: these are not live readings. Missing or invalid fields are shown as —. Wind speed and humidity are not included in this feed.</p>
     <div class="jump-grid rems-actions">
       <button id="rems-refresh" class="hud-btn" type="button">Refresh feed</button>
       <a class="hud-btn secondary" href="https://mars.nasa.gov/rss/api/?feed=weather&amp;category=msl&amp;feedtype=json" target="_blank" rel="noopener noreferrer">NASA REMS source ↗</a>

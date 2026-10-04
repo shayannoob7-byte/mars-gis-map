@@ -4,6 +4,8 @@
   function showFatal(message) { $('fatal-error').textContent = message; $('fatal-error').hidden = false; }
   if (!window.Cesium) { showFatal('CesiumJS could not load. Check your internet connection and reload.'); return; }
   const C = window.Cesium;
+  const { createRequests } = window.MarsData;
+  const requests = createRequests();
   const MARS = new C.Ellipsoid(3396190.0, 3396190.0, 3376200.0);
   const MEAN_RADIUS_KM = 3389.5;
   const ACCENT = C.Color.fromCssColorString('#ff934f');
@@ -84,7 +86,7 @@
   const sites = [
     { id: 'perseverance', name: 'Jezero Crater', mission: 'Perseverance', lat: 18.38, lon: 77.58, description: "NASA's Perseverance rover explores an ancient lake basin and river delta, examining geology and collecting rock samples." },
     { id: 'curiosity', name: 'Gale Crater', mission: 'Curiosity', lat: -4.58, lon: 137.44, description: "NASA's Curiosity rover investigates the rocks of Gale Crater and Mount Sharp to understand past habitable environments." },
-    { id: 'opportunity', name: 'Meridiani Planum', mission: 'Opportunity', lat: -1.95, lon: -35.47, description: "NASA's Opportunity rover studied sedimentary rocks and mineral evidence of past water across Meridiani Planum." },
+    { id: 'opportunity', name: 'Meridiani Planum', mission: 'Opportunity', lat: -1.95, lon: -5.53, description: "NASA's Opportunity rover studied sedimentary rocks and mineral evidence of past water across Meridiani Planum." },
     { id: 'spirit', name: 'Gusev Crater', mission: 'Spirit', lat: -14.57, lon: 175.47, description: "NASA's Spirit rover explored Gusev Crater and the Columbia Hills, investigating volcanic rocks and evidence of water." },
     { id: 'viking-1', name: 'Chryse Planitia', mission: 'Viking 1', lat: 22.48, lon: -47.97, description: "NASA's Viking 1 lander examined the Martian surface, atmosphere, and soil from Chryse Planitia." },
     { id: 'zhurong', name: 'Utopia Planitia', mission: 'Zhurong', lat: 25.06, lon: 109.92, description: "China's Zhurong rover investigated surface materials, subsurface structure, and the environment of Utopia Planitia." }
@@ -199,11 +201,7 @@
   // Cached promise. Failures are evicted so the next selection retries.
   function loadWmtsSpec(product) {
     if (wmtsSpecCache.has(product)) return wmtsSpecCache.get(product);
-    const pending = fetch(`${WMTS_ROOT}/${product}/1.0.0/WMTSCapabilities.xml`)
-      .then((response) => {
-        if (!response.ok) throw new Error(`GetCapabilities returned HTTP ${response.status}.`);
-        return response.text();
-      })
+    const pending = requests.read(`${WMTS_ROOT}/${product}/1.0.0/WMTSCapabilities.xml`, 'text')
       .then((text) => parseWmtsCapabilities(product, text));
     wmtsSpecCache.set(product, pending);
     pending.catch(() => wmtsSpecCache.delete(product));
@@ -260,8 +258,8 @@
   function validatedProvider(spec, options) {
     const provider = new C.UrlTemplateImageryProvider(options);
     const buildUrl = provider.requestImage.bind(provider);
-    provider.requestImage = (column, row, level) =>
-      wmtsTileUrl(spec, level, row, column) ? buildUrl(column, row, level) : blankTile();
+    provider.requestImage = (column, row, level, request) =>
+      wmtsTileUrl(spec, level, row, column) ? buildUrl(column, row, level, request) : blankTile();
     return provider;
   }
   function trekProviderOptions(spec, credit) {
@@ -303,14 +301,16 @@
     setStatus('hirise-status', `${site.name} · Validating coverage against NASA's WMTS GetCapabilities…`);
     let spec = null, ctxSpec = null;
     try {
-      spec = await loadWmtsSpec(site.product);
-      if (site.ctx) ctxSpec = await loadWmtsSpec(site.ctx.product);
+      const results = await Promise.allSettled([loadWmtsSpec(site.product),
+        ...(site.ctx ? [loadWmtsSpec(site.ctx.product)] : [])]);
+      spec = results[0].status === 'fulfilled' ? results[0].value : null;
+      ctxSpec = results[1]?.status === 'fulfilled' ? results[1].value : null;
     } catch (error) {
       console.warn('WMTS GetCapabilities unavailable; using embedded coverage limits.', error);
     }
     // A newer selection (or powering the overlay off) supersedes this one.
     if (disposed || request !== hiriseRequest || selectedHirise !== site) return;
-    const published = Boolean(spec);
+    const published = Boolean(spec) && (!site.ctx || Boolean(ctxSpec));
     spec = spec || embeddedWmtsSpec(site);
     if (site.ctx) ctxSpec = ctxSpec || embeddedWmtsSpec(site.ctx);
     if (ctxSpec) {
@@ -335,7 +335,7 @@
       }
     });
     $('hirise-source').href = `https://trek.nasa.gov/mars/TrekWS/rest/cat/metadata/fgdc/html?label=${site.product}`;
-    setStatus('hirise-status', `${site.name} · HiRISE enabled${ctxSpec ? ', CTX fills coverage outside the strip' : ''} · ${published ? 'tiles validated against WMTS GetCapabilities' : 'GetCapabilities unreachable, using embedded coverage limits'}. Zoom in to explore the surface.`);
+    setStatus('hirise-status', `${site.name} · HiRISE enabled${ctxSpec ? ', CTX fills coverage outside the strip' : ''} · ${published ? 'tiles validated against WMTS GetCapabilities' : 'some capabilities unavailable, using embedded limits for affected layers'}. Zoom in to explore the surface.`);
     closeSitePopup();
     flyToHirise();
   }
@@ -355,7 +355,7 @@
     measurementEntities.length = 0; measuredPoints = [];
     ['surface-distance', 'geodesic-distance', 'chord-distance', 'point-a', 'point-b'].forEach((id) => { $(id).textContent = '—'; });
     $('measurement-note').textContent = defaultMeasurementNote;
-    $('profiler-instructions').textContent = profilerEnabled ? 'Select Point A on the globe. Escape exits the profiler.' : 'Enable the profiler, then select two points on Mars.';
+    $('profiler-instructions').textContent = profilerEnabled ? 'Select Point A on the globe. Escape exits the measurement tool.' : 'Enable the measurement tool, then select two points on Mars.';
   }
   function setProfiler(enabled) {
     profilerEnabled = enabled;
@@ -363,11 +363,11 @@
     $('profiler-btn').setAttribute('aria-pressed', String(enabled));
     $('cesiumContainer').classList.toggle('profiler-active', enabled);
     if (enabled) { closeSitePopup(); clearMeasurement(); }
-    else $('profiler-instructions').textContent = 'Profiler off. Enable it to start another measurement.';
+    else $('profiler-instructions').textContent = 'Measurement tool off. Enable it to start another measurement.';
   }
   listen($('profiler-btn'), 'click', () => setProfiler(!profilerEnabled));
   listen($('clear-profiler'), 'click', clearMeasurement);
-  listen(document, 'keydown', (event) => { if (event.key === 'Escape') { if (profilerEnabled) setProfiler(false); closeSitePopup(); closeRems(); } });
+  listen(document, 'keydown', (event) => { if (event.key === 'Escape') { if (profilerEnabled) setProfiler(false); closeSitePopup(); weather.closeRems(); } });
   function addMeasurementMarker(point, label) {
     const height = Math.max(1000, MARS.cartesianToCartographic(viewer.camera.positionWC).height);
     const radius = C.Math.clamp(height * 0.0025, 150, 9000);
@@ -451,7 +451,7 @@
     $('weather-heading').textContent = isStation ? 'InSight · Observed at This Station' : 'InSight Station · Reference Only';
     setStatus('location-weather', isStation
       ? 'Archived measurements for this station are shown below. They are sol averages, not instantaneous readings.'
-      : 'No measured temperature or pressure for this point is loaded. InSight is the only weather station in this project; its readings below do not describe this location.');
+      : 'No measured temperature or pressure for this point is loaded. The InSight readings below are a station reference, not weather for this point. Curiosity observations are available separately under Latest Available Curiosity Weather.');
     if (selectedLocationMarker) viewer.entities.remove(selectedLocationMarker);
     selectedLocationMarker = viewer.entities.add({
       name: 'Inspected location',
@@ -466,7 +466,7 @@
     $('location-name').textContent = 'Click anywhere on Mars to inspect a location.';
     ['selected-lat', 'selected-lon', 'station-distance'].forEach(id => { $(id).textContent = '—'; });
     $('weather-heading').textContent = 'InSight Station · Reference';
-    setStatus('location-weather', 'Weather observations are available only at the InSight station in this project.');
+    setStatus('location-weather', 'This panel shows archived InSight station observations. Use Latest Available Curiosity Weather for separate Gale Crater observations; neither station describes arbitrary points on Mars.');
   }
   listen($('clear-location'), 'click', clearLocation);
   listen($('inspect-insight'), 'click', () => {
@@ -504,176 +504,10 @@
   viewer.camera.percentageChanged = 0.001;
   const removeCameraListener = viewer.camera.changed.addEventListener(scheduleTelemetry);
   updateTelemetry();
-  let weatherController = null, weatherInFlight = false;
-  const WEATHER_URL = 'https://api.nasa.gov/insight_weather/?api_key=DEMO_KEY&feedtype=json&ver=1.0';
-  const WEATHER_CACHE_KEY = 'mars-insight-observations-v1';
-  const WEATHER_CHECK_KEY = 'mars-insight-check-v1';
-  const WEATHER_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
-  // Actual NASA API response retrieved 2026-10-03; AT and PRE validity
-  // flags were both true. Original response: data/insight-weather-response.json.
-  // Embedded so the single-file preview also retains genuine observations.
-  const NASA_ARCHIVE = Object.freeze({
-    sol: '681', temperature: -62.434, pressure: 743.55,
-    firstUTC: '2020-10-25T22:29:51Z', lastUTC: '2020-10-26T23:09:26Z'
-  });
-  let currentWeather = NASA_ARCHIVE;
-  let lastWeatherCheck = 0;
-  function validWeather(record) {
-    return record && /^\d+$/.test(String(record.sol)) &&
-      Number.isFinite(record.temperature) && Number.isFinite(record.pressure) &&
-      record.pressure > 0 && Number.isFinite(Date.parse(record.firstUTC)) &&
-      Number.isFinite(Date.parse(record.lastUTC)) &&
-      Date.parse(record.firstUTC) <= Date.parse(record.lastUTC);
-  }
-  function newerWeather(candidate, existing) {
-    return Date.parse(candidate.lastUTC) >= Date.parse(existing.lastUTC);
-  }
-  function selectNasaWeather(data) {
-    const keys = Array.isArray(data?.sol_keys) ? data.sol_keys : [];
-    for (const sol of [...keys].filter((key) => /^\d+$/.test(String(key))).sort((a, b) => Number(b) - Number(a))) {
-      const record = data[sol], quality = data.validity_checks?.[sol];
-      if (quality?.AT?.valid !== true || quality?.PRE?.valid !== true) continue;
-      const observation = { sol: String(sol), temperature: record?.AT?.av,
-        pressure: record?.PRE?.av, firstUTC: record?.First_UTC, lastUTC: record?.Last_UTC };
-      if (validWeather(observation)) return observation;
-    }
-    throw new Error('NASA returned no complete, validated weather record.');
-  }
-  function renderWeather(status) {
-    $('weather-sol').textContent = currentWeather.sol;
-    $('weather-temp').textContent = `${currentWeather.temperature.toFixed(3)} °C`;
-    $('weather-pressure').textContent = `${currentWeather.pressure.toFixed(2)} Pa`;
-    $('weather-date').textContent = currentWeather.lastUTC.slice(0, 10);
-    $('weather-date').title = `${currentWeather.firstUTC} to ${currentWeather.lastUTC}`;
-    setStatus('weather-status', status);
-  }
-  // Cache successful observations and throttle checks across page reloads.
-  // Storage may be blocked; the bundled NASA observation still works.
-  try {
-    const cached = JSON.parse(localStorage.getItem(WEATHER_CACHE_KEY) || 'null');
-    if (validWeather(cached) && newerWeather(cached, currentWeather)) currentWeather = cached;
-    const checked = Number(localStorage.getItem(WEATHER_CHECK_KEY));
-    if (Number.isFinite(checked) && checked <= Date.now()) lastWeatherCheck = checked;
-  } catch (error) { /* Storage is optional. */ }
-  renderWeather('Verified NASA archive · Saved observations.');
-  async function loadWeather() {
-    if (disposed || weatherInFlight || Date.now() - lastWeatherCheck < WEATHER_CHECK_INTERVAL) return;
-    lastWeatherCheck = Date.now();
-    try { localStorage.setItem(WEATHER_CHECK_KEY, String(lastWeatherCheck)); } catch (error) { /* Optional cache. */ }
-    weatherInFlight = true; weatherController = new AbortController();
-    const timeout = window.setTimeout(() => weatherController?.abort(), 10000);
-    try {
-      const response = await fetch(WEATHER_URL, { signal: weatherController.signal, credentials: 'omit', headers: { Accept: 'application/json' } });
-      if (!response.ok) throw new Error(`NASA API returned HTTP ${response.status}`);
-      const observation = selectNasaWeather(await response.json());
-      if (disposed) return;
-      if (newerWeather(observation, currentWeather)) {
-        currentWeather = observation;
-        try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(currentWeather)); } catch (error) { /* Optional cache. */ }
-        renderWeather('Verified NASA archive · Latest valid record returned by the API.');
-      } else renderWeather('Verified NASA archive · Retaining the newer saved observation.');
-    } catch (error) {
-      if (disposed) return;
-      renderWeather('Verified NASA archive · Saved observations; API refresh unavailable.');
-    } finally { window.clearTimeout(timeout); weatherController = null; weatherInFlight = false; }
-  }
-  loadWeather();
-  const weatherRefresh = window.setInterval(() => { if (!document.hidden) loadWeather(); }, 30 * 60 * 1000);
-  // Curiosity REMS overview tab. Source: NASA's public outreach weather feed
-  // (CORS-open, no key). It publishes validated sol averages days to weeks
-  // after the sol, so the panel states the lag instead of implying live data.
-  const REMS_URL = 'https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json';
-  const REMS_CACHE_KEY = 'mars-rems-observations-v1';
-  const REMS_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
-  const REMS_HISTORY_ROWS = 10;
-  let remsRecords = null, remsLastCheck = 0, remsInFlight = false, remsPreviousFocus = null;
-  function remsValue(value) {
-    return value !== undefined && value !== null && value !== '' && value !== '--' ? String(value) : '—';
-  }
-  function remsLagDays(date) {
-    const time = Date.parse(date);
-    return Number.isFinite(time) ? Math.max(0, Math.round((Date.now() - time) / 86400000)) : null;
-  }
-  function renderRems(status, warning = false) {
-    const latest = remsRecords?.[0];
-    if (!latest) return;
-    $('rems-sol').textContent = remsValue(latest.sol);
-    $('rems-date').textContent = remsValue(latest.terrestrial_date);
-    $('rems-ls').textContent = `${remsValue(latest.ls)}°${latest.season ? ` · ${latest.season}` : ''}`;
-    $('rems-temps').textContent = `${remsValue(latest.min_temp)} °C / ${remsValue(latest.max_temp)} °C`;
-    $('rems-ground').textContent = `${remsValue(latest.min_gts_temp)} °C / ${remsValue(latest.max_gts_temp)} °C`;
-    $('rems-pressure').textContent = latest.pressure && latest.pressure !== '--'
-      ? `${latest.pressure} Pa${latest.pressure_string ? ` · ${latest.pressure_string}` : ''}` : '—';
-    $('rems-sky').textContent = remsValue(latest.atmo_opacity);
-    $('rems-uv').textContent = remsValue(latest.local_uv_irradiance_index);
-    $('rems-sun').textContent = `${remsValue(latest.sunrise)} · ${remsValue(latest.sunset)}`;
-    const rows = remsRecords.slice(0, REMS_HISTORY_ROWS).map((record) => {
-      const tr = document.createElement('tr');
-      [record.sol, record.terrestrial_date, record.min_temp, record.max_temp, record.pressure].forEach((value) => {
-        const td = document.createElement('td');
-        td.textContent = remsValue(value);
-        tr.append(td);
-      });
-      return tr;
-    });
-    $('rems-history').replaceChildren(...rows);
-    setStatus('rems-status', status, warning);
-  }
-  async function loadRems(force = false) {
-    if (remsInFlight) return;
-    if (!force && remsRecords && Date.now() - remsLastCheck < REMS_CHECK_INTERVAL) {
-      renderRems('Saved observations · NASA feed checked every 6 hours.');
-      return;
-    }
-    remsInFlight = true;
-    setStatus('rems-status', 'Requesting NASA REMS observations…');
-    try {
-      const response = await fetch(REMS_URL, { credentials: 'omit', headers: { Accept: 'application/json' } });
-      if (!response.ok) throw new Error(`NASA feed returned HTTP ${response.status}`);
-      const payload = await response.json();
-      const soles = Array.isArray(payload?.soles) ? payload.soles : [];
-      const records = soles.filter((record) => record && /^\d+$/.test(String(record.sol)) &&
-        Number.isFinite(Date.parse(record.terrestrial_date)));
-      if (!records.length) throw new Error('Feed returned no usable sols.');
-      remsRecords = records;
-      remsLastCheck = Date.now();
-      // Trim the cache to the displayed window so storage stays small.
-      try { localStorage.setItem(REMS_CACHE_KEY, JSON.stringify({ at: remsLastCheck, records: records.slice(0, 60) })); } catch (error) { /* Optional cache. */ }
-      const lag = remsLagDays(records[0].terrestrial_date);
-      renderRems(`Live NASA feed · newest sol ${records[0].sol} (${records[0].terrestrial_date})${lag !== null ? ` · ${lag} days behind today` : ''}.`);
-    } catch (error) {
-      if (remsRecords) renderRems('NASA feed unreachable; showing saved observations.', true);
-      else setStatus('rems-status', 'NASA REMS feed unreachable. Check the connection, then use Refresh feed.', true);
-    } finally { remsInFlight = false; }
-  }
-  // Restore saved observations so the tab has content before the first fetch.
-  try {
-    const cached = JSON.parse(localStorage.getItem(REMS_CACHE_KEY) || 'null');
-    if (cached && Number.isFinite(cached.at) && Array.isArray(cached.records) && cached.records.length &&
-        /^\d+$/.test(String(cached.records[0]?.sol))) {
-      remsRecords = cached.records;
-      remsLastCheck = cached.at;
-    }
-  } catch (error) { /* Optional cache. */ }
-  function closeRems() {
-    if ($('rems-panel').hidden) return;
-    $('rems-panel').hidden = true;
-    remsPreviousFocus?.focus?.();
-  }
-  function openRems() {
-    remsPreviousFocus = document.activeElement;
-    $('rems-panel').hidden = false;
-    closeSitePopup();
-    $('rems-panel').scrollTop = 0;
-    $('close-rems').focus();
-    loadRems();
-  }
-  listen($('open-rems'), 'click', openRems);
-  listen($('close-rems'), 'click', closeRems);
-  listen($('rems-refresh'), 'click', () => loadRems(true));
+  const weather = window.MarsWeather.init({ $, listen, setStatus, requests, closeSitePopup, isDisposed: () => disposed });
   function dispose() {
     if (disposed) return; disposed = true;
-    window.clearInterval(weatherRefresh); weatherController?.abort();
+    weather.dispose(); requests.abortAll();
     if (telemetryFrame !== null) cancelAnimationFrame(telemetryFrame);
     cleanups.forEach((cleanup) => cleanup()); removeCameraListener(); removeImageryErrorListener?.(); removeHiriseErrorListener?.(); removeCtxErrorListener?.();
     if (!handler.isDestroyed()) handler.destroy();

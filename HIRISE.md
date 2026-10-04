@@ -42,6 +42,6 @@ Credit: NASA / JPL-Caltech / MSSS. The layer is inserted at index 1 — directly
 - Pixels outside coverage display the CTX layer for Gale Crater, or the selected global basemap elsewhere.
 - Tile coordinates outside the matrix bounds published in GetCapabilities are answered locally with a transparent tile; such requests are never sent, so they cannot produce 404 responses.
 - These imagery overlays do not supply a terrain model. Existing distance calculations still exclude terrain relief.
-- The supplied original Opportunity marker uses longitude -35.47 degrees. The NASA Opportunity mosaic is near -5.3 degrees; its new camera jump follows the published mosaic coverage independently of that original marker.
+- Opportunity’s landing marker uses 1.95°S, 5.53°W (354.47°E), matching NASA’s Eagle Crater landing-site reference. The mosaic camera target is centered separately within the imagery footprint.
 - Online NASA tile availability is required. Failures are reported in the HiRISE status area.
-- The standalone preview embeds the same source CSS and JavaScript. Rebuild preview.html from index.html, style.css, and app.js after changing those sources.
+- The standalone preview embeds the same source CSS and JavaScript. Run `node scripts/build-preview.cjs` after changing any application source. The generator embeds all local scripts and styles from index.html.

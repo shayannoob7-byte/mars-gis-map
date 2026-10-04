@@ -1,0 +1,10 @@
+{
+  "name": "mars-gis-map",
+  "private": true,
+  "scripts": {
+    "start": "node local-server.cjs",
+    "test": "node --test",
+    "preview:build": "node scripts/build-preview.cjs",
+    "preview:check": "node scripts/build-preview.cjs --check"
+  }
+}
