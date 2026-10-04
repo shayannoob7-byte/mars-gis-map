@@ -4,6 +4,8 @@ An interactive Mars globe and solar-system explorer built with vanilla HTML, CSS
 
 ## Features
 
+- DSN Now communications dashboard with Goldstone, Madrid, and Canberra antennas, spacecraft targets, uplink/downlink activity, reported data rates, and a Mars-mission filter. Source timestamps and stale-data warnings distinguish live retrieval from current observations.
+- Open any location overview and select **Images & videos of [location]** to search NASA's library for that place. Each location starts a fresh search with both media types and the first results page. Filter images/videos, browse result pages, and view images or play videos with NASA credits and source links. The library is accessed from location overviews rather than the command center.
 - Mars imagery with Viking and MOLA basemaps and selected HiRISE overlays.
 - Landing-site markers, geographic overviews, and quick camera jumps.
 - Two-point distance measurement calibrated for Mars.
@@ -22,6 +24,8 @@ On Windows with Node.js installed, double-click `Open Mars Globe.cmd`. This star
 - `style.css`: Mars-themed layout and styling.
 - `app.js`: globe, imagery, measurements, and locations.
 - `weather.js`: InSight and Curiosity panels, caching, and observation status.
+- `media-library.js`: NASA archive search and media viewer.
+- `dsn-now.js`: DSN XML parsing, station cards, and visible-panel polling.
 - `data-services.js`: shared request deadlines, cancellation, and observation validation.
 - `scripts/build-preview.cjs`: reproducible standalone preview generator.
 - `tests/`: dependency-free regression tests.
@@ -35,6 +39,10 @@ InSight observations are historical station measurements, not live weather or me
 See [HiRISE notes](HIRISE.md) and [weather data notes](data/README.md) for further details.
 
 ## Development and verification
+
+DSN Now uses NASA's public XML feed at `https://eyes.nasa.gov/dsn/data/dsn.xml` and optional spacecraft names from `https://eyes.nasa.gov/apps/dsn-now/config.xml`. Both allow browser requests without a key. This is the DSN Now website feed, not a versioned API contract. The panel polls every 15 seconds only while open and visible, with 10-second request deadlines. Closing cancels outstanding requests. Failed refreshes retain the last response with a warning; source timestamps over two minutes old are marked stale. Inactive signal rates and negative missing-value sentinels are not shown as current traffic. The Mars filter uses a maintained list of mission codes. See [NASA's DSN overview](https://www.nasa.gov/communicating-with-missions/dsn/).
+
+The media library uses NASA's public `https://images-api.nasa.gov/search` and `/asset/{nasa_id}` endpoints directly from the browser, with no API key. See the [official NASA API documentation](https://images.nasa.gov/docs/images.nasa.gov_api_docs.pdf). It loads 12 results per page and resolves actual asset manifests for browser-friendly images and MP4 videos. Media is historical, not live; source links provide item-specific credits and alternate formats. Requests have a 10-second deadline. Closing the library cancels requests and stops video playback.
 
 Use Node.js 18 or newer. No npm dependencies need installing.
 

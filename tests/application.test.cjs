@@ -9,8 +9,8 @@ const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 test('generated preview embeds current sources in dependency order and parses', () => {
   const preview = buildPreview();
   const scripts = [...preview.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(Boolean);
-  assert.equal(scripts.length, 4);
-  ['data-services.js', 'weather.js', 'app.js', 'solar-system.js'].forEach((file, i) => {
+  assert.equal(scripts.length, 6);
+  ['data-services.js', 'weather.js', 'app.js', 'solar-system.js', 'media-library.js', 'dsn-now.js'].forEach((file, i) => {
     assert.ok(scripts[i].includes(read(file)));
     new vm.Script(scripts[i]);
   });
@@ -19,7 +19,7 @@ test('generated preview embeds current sources in dependency order and parses', 
 test('all literal UI references resolve and IDs are unique', () => {
   const ids = [...read('index.html').matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
   assert.equal(new Set(ids).size, ids.length);
-  for (const file of ['app.js', 'weather.js', 'solar-system.js']) {
+  for (const file of ['app.js', 'weather.js', 'solar-system.js', 'media-library.js', 'dsn-now.js']) {
     for (const match of read(file).matchAll(/\$\('([^']+)'\)/g)) assert.ok(ids.includes(match[1]), match[1]);
   }
 });

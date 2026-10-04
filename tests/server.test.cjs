@@ -8,7 +8,7 @@ test('local server serves all application modules and restricts unrelated paths/
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    for (const file of ['/', '/style.css', '/data-services.js', '/weather.js', '/app.js', '/solar-system.js']) {
+    for (const file of ['/', '/style.css', '/data-services.js', '/weather.js', '/app.js', '/solar-system.js', '/media-library.js', '/dsn-now.js']) {
       const response = await fetch(base + file);
       assert.equal(response.status, 200, file);
       assert.ok((await response.text()).length > 0);

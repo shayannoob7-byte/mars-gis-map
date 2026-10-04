@@ -127,6 +127,9 @@
     $('site-source').hidden = !site.source;
     if (site.source) $('site-source').href = site.source;
     else $('site-source').removeAttribute('href');
+    $('site-media').dataset.query = site.name;
+    $('site-media').textContent = `Images & videos of ${site.name} ↗`;
+    $('site-media').href = `https://images.nasa.gov/search?q=${encodeURIComponent(site.name)}&media=image,video`;
     $('site-coordinates').textContent = `${site.lat.toFixed(4)}° latitude · ${site.lon.toFixed(4)}° longitude · ${site.category ? 'Overview camera target' : 'Reference site'}`;
     $('site-popup').hidden = false;
     $('site-popup').scrollTop = 0;

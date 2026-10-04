@@ -9,6 +9,8 @@ const files = new Map([
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
   ['/data-services.js', ['data-services.js', 'text/javascript; charset=utf-8']],
   ['/weather.js', ['weather.js', 'text/javascript; charset=utf-8']],
+  ['/media-library.js', ['media-library.js', 'text/javascript; charset=utf-8']],
+  ['/dsn-now.js', ['dsn-now.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/solar-system.js', ['solar-system.js', 'text/javascript; charset=utf-8']],
   ['/data/insight-weather-response.json', ['data/insight-weather-response.json', 'application/json']],

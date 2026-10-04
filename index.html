@@ -12,6 +12,8 @@
   <script defer src="weather.js"></script>
   <script defer src="app.js"></script>
   <script defer src="solar-system.js"></script>
+  <script defer src="media-library.js"></script>
+  <script defer src="dsn-now.js"></script>
 </head>
 <body>
   <div id="cesiumContainer" role="region" aria-label="Interactive three-dimensional Mars globe"></div>
@@ -54,6 +56,7 @@
     <p class="eyebrow">NASA Space Apps · Mars Explorer</p>
     <h1 id="command-title">3D MARS GLOBE COMMAND CENTER</h1>
     <button id="open-solar" class="hud-btn" type="button">Explore Solar System ↗</button>
+    <button id="open-dsn" class="hud-btn" type="button">DSN Now · Spacecraft Communications ↗</button>
     <button id="open-rems" class="hud-btn" type="button">Latest Available Curiosity Weather ↗</button>
     <label for="basemap-select">Surface imagery</label>
     <select id="basemap-select">
@@ -114,6 +117,7 @@
     <dl id="site-facts" class="measurement-list" hidden></dl>
     <p id="site-coordinates" class="coordinate-text"></p>
     <a id="site-source" class="source-link" target="_blank" rel="noopener noreferrer" hidden>NASA overview and measurements ↗</a>
+    <a id="site-media" class="source-link" aria-haspopup="dialog">Images &amp; videos of this location ↗</a>
   </section>
   <section id="rems-panel" class="hud-panel" role="dialog" aria-labelledby="rems-title" hidden>
     <button id="close-rems" class="close-btn" type="button" aria-label="Close weather overview">×</button>
@@ -174,6 +178,38 @@
     </aside>
     <div class="solar-caption"><strong>Drag to orbit · Scroll to zoom</strong><br>Orbit distances are proportional. Sun and planet sizes are enlarged; colors are illustrative.<br>Gold: Earth–Sun · Coral: Mars–Sun · Cyan: Earth–Mars</div>
   </section>
+  <dialog id="dsn-panel" aria-labelledby="dsn-heading">
+    <header class="media-header"><div><p class="eyebrow">NASA / JPL · Deep Space Network</p><h2 id="dsn-heading">DSN Now</h2></div><button id="close-dsn" class="hud-btn secondary" type="button">Return to Mars</button></header>
+    <p class="help-text">Earth antennas communicating with spacecraft across the Solar System. Uplink sends signals to spacecraft; downlink receives them. An active signal does not necessarily carry science data.</p>
+    <div class="dsn-controls"><label><input id="dsn-mars" type="checkbox"> Mars-related missions only</label><button id="dsn-refresh" class="hud-btn" type="button">Refresh now</button></div>
+    <p id="dsn-status" class="status-text" role="status">Open this panel to request NASA station data.</p>
+    <div id="dsn-stations"></div>
+    <p class="help-text">Refreshes every 15 seconds while this panel and browser tab are visible. Source data older than two minutes is marked stale. Inactive signals may include old data rates, which are not displayed as current traffic. Missing antennas or signals do not establish mission health. The Mars filter includes known Mars mission codes, including cruise missions.</p>
+    <a class="source-link" href="https://eyes.nasa.gov/apps/dsn-now/" target="_blank" rel="noopener noreferrer">Open NASA DSN Now ↗</a>
+  </dialog>
+  <dialog id="media-library" aria-labelledby="media-heading">
+    <header class="media-header">
+      <div><p class="eyebrow">NASA archives · Images and films</p><h2 id="media-heading">Explore the NASA Library</h2></div>
+      <button id="close-media" class="hud-btn secondary" type="button">Close library</button>
+    </header>
+    <form id="media-form">
+      <div><label for="media-query">Search NASA media</label><input id="media-query" type="search" value="Mars" maxlength="200" placeholder="Mars, Perseverance, Olympus Mons…"></div>
+      <div><label for="media-type">Media type</label><select id="media-type"><option value="image,video">Images and videos</option><option value="image">Images</option><option value="video">Videos</option></select></div>
+      <button class="hud-btn" type="submit">Search</button>
+    </form>
+    <p id="media-status" class="status-text" role="status">Search NASA's image and video archive.</p>
+    <section id="media-detail" aria-labelledby="media-title" hidden>
+      <h3 id="media-title" tabindex="-1"></h3>
+      <p id="media-credit" class="help-text"></p>
+      <div id="media-player"></div>
+      <p id="media-detail-status" class="status-text" role="status"></p>
+      <p id="media-description"></p>
+      <div class="media-links"><a id="media-source" target="_blank" rel="noopener noreferrer">View on NASA ↗</a><a id="media-file" target="_blank" rel="noopener noreferrer" hidden>Open media file ↗</a></div>
+    </section>
+    <div id="media-results" class="media-grid" aria-label="NASA search results" aria-busy="false"></div>
+    <nav class="media-pagination" aria-label="Search result pages"><button id="media-prev" class="hud-btn secondary" type="button" disabled>Previous page</button><button id="media-next" class="hud-btn secondary" type="button" disabled>Next page</button></nav>
+    <p class="help-text">Source: <a href="https://images.nasa.gov/" target="_blank" rel="noopener noreferrer">NASA Image and Video Library</a>. Historical imagery, illustrations, and videos; these are not live views. Refer to each item's NASA page for credits and usage information.</p>
+  </dialog>
   <noscript><div class="hud-panel error-panel">JavaScript is required to display the Mars globe.</div></noscript>
 </body>
 </html>
