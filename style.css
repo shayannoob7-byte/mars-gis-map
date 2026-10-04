@@ -38,6 +38,8 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background-color: #0
   .solar-caption { bottom: 10px; left: 12px; right: 12px; font-size: 9px; }
 }
 #cesiumContainer { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+.globe-shading-option { display: flex; align-items: center; gap: 9px; margin-top: 12px; }
+.globe-shading-option input { accent-color: var(--accent); width: 15px; height: 15px; }
 #cesiumContainer.profiler-active, #cesiumContainer.profiler-active canvas { cursor: crosshair; }
 .cesium-viewer-bottom, .cesium-viewer-animationContainer, .cesium-viewer-timelineContainer { display: none !important; }
 .hud-panel, #telemetry-bar, #control-panel { position: absolute; z-index: 1000; background: rgba(7, 11, 16, 0.94); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 121, 56, 0.3); border-radius: 8px; padding: 16px; box-shadow: 0 0 15px rgba(255, 121, 56, 0.15); }

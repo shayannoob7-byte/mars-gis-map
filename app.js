@@ -9,6 +9,8 @@
   const MARS = new C.Ellipsoid(3396190.0, 3396190.0, 3376200.0);
   const MEAN_RADIUS_KM = 3389.5;
   const ACCENT = C.Color.fromCssColorString('#ff934f');
+  const LANDMARK_COLOR = C.Color.fromCssColorString('#39ff14');
+  const INSIGHT_COLOR = C.Color.fromCssColorString('#168bff');
   // Georeferenced HiRISE location, Golombek et al. (2020):
   // https://doi.org/10.1029/2020EA001248
   const INSIGHT = { id: 'insight', name: 'Elysium Planitia', mission: 'InSight',
@@ -31,16 +33,61 @@
       sceneModePicker: false, navigationHelpButton: false, fullscreenButton: false,
       vrButton: false, animation: false, timeline: false, selectionIndicator: false,
       infoBox: false, sceneMode: C.SceneMode.SCENE3D, scene3DOnly: true,
-      // Cesium's catalogue-based star cube follows the camera around Mars.
       // Keep Earth-specific atmosphere, Sun and Moon visuals disabled.
       skyAtmosphere: false, creditContainer: $('cesium-credits'),
       shouldAnimate: false, targetFrameRate: 30
     });
   } catch (error) { console.error(error); showFatal('The Mars renderer could not initialize. Enable WebGL and hardware acceleration, then reload.'); return; }
-  viewer.resolutionScale = Math.min(1, 1.5 / (window.devicePixelRatio || 1));
-  viewer.scene.backgroundColor = C.Color.fromCssColorString('#020308');
+  // Render at up to 1.5 physical pixels per CSS pixel, including on HiDPI
+  // displays. Cesium's recommended-resolution mode otherwise ignores DPR.
+  viewer.useBrowserRecommendedResolution = false;
+  function updateResolution() { viewer.resolutionScale = Math.min(1, 1.5 / (window.devicePixelRatio || 1)); }
+  updateResolution();
+  viewer.scene.postProcessStages.fxaa.enabled = true;
+  viewer.scene.globe.maximumScreenSpaceError = 1.3;
+  viewer.scene.globe.tileCacheSize = 160;
+  viewer.scene.backgroundColor = C.Color.fromCssColorString('#02040a');
   viewer.scene.globe.baseColor = C.Color.fromCssColorString('#8e4835');
   viewer.scene.globe.enableLighting = false;
+  // Camera-relative presentation lighting, not a simulation of Martian time.
+  // Fade to evenly lit imagery at close range so mapping remains readable.
+  viewer.scene.globe.lightingFadeOutDistance = 250000;
+  viewer.scene.globe.lightingFadeInDistance = 1800000;
+  viewer.scene.globe.lambertDiffuseMultiplier = 1.15;
+  const presentationLight = new C.DirectionalLight({ direction: new C.Cartesian3(0, 0, -1) });
+  viewer.scene.light = presentationLight;
+  function updatePresentationLight() {
+    const camera = viewer.camera;
+    const direction = C.Cartesian3.clone(camera.directionWC);
+    C.Cartesian3.add(direction, C.Cartesian3.multiplyByScalar(camera.rightWC, 0.4, new C.Cartesian3()), direction);
+    C.Cartesian3.add(direction, C.Cartesian3.multiplyByScalar(camera.upWC, -0.3, new C.Cartesian3()), direction);
+    C.Cartesian3.normalize(direction, presentationLight.direction);
+  }
+  const removeLightListener = viewer.scene.preRender.addEventListener(updatePresentationLight);
+  // A sparse, deterministic illustrative star field. Generated once locally:
+  // no image downloads, animated twinkling, or Earth atmosphere around Mars.
+  function starFace(seed) {
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1024;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#02040a'; context.fillRect(0, 0, 1024, 1024);
+    function random() { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; }
+    for (let i = 0; i < 480; i++) {
+      const x = random() * 1024, y = random() * 1024, brightness = random();
+      const radius = brightness > 0.985 ? 1.35 : 0.35 + random() * 0.55;
+      if (brightness > 0.985) {
+        const glow = context.createRadialGradient(x, y, 0, x, y, 5);
+        glow.addColorStop(0, 'rgba(180,205,240,.2)'); glow.addColorStop(1, 'rgba(180,205,240,0)');
+        context.fillStyle = glow; context.fillRect(x - 5, y - 5, 10, 10);
+      }
+      context.fillStyle = `rgba(210,220,238,${0.2 + brightness * 0.65})`;
+      context.beginPath(); context.arc(x, y, radius, 0, Math.PI * 2); context.fill();
+    }
+    return canvas;
+  }
+  const previousSky = viewer.scene.skyBox;
+  viewer.scene.skyBox = new C.SkyBox({ sources: Object.fromEntries(
+    ['positiveX', 'negativeX', 'positiveY', 'negativeY', 'positiveZ', 'negativeZ'].map((face, index) => [face, starFace(104729 + index * 8191)])) });
+  if (previousSky && !previousSky.isDestroyed()) previousSky.destroy();
   viewer.scene.globe.showGroundAtmosphere = false;
   viewer.scene.globe.depthTestAgainstTerrain = true;
   if (viewer.scene.sun) viewer.scene.sun.show = false;
@@ -52,6 +99,9 @@
   let disposed = false;
   const cleanups = [];
   function listen(element, type, callback) { element.addEventListener(type, callback); cleanups.push(() => element.removeEventListener(type, callback)); }
+  listen(window, 'resize', updateResolution);
+  function updateShading() { viewer.scene.globe.enableLighting = $('globe-shading').checked && $('basemap-select').value === 'viking'; }
+  listen($('globe-shading'), 'change', updateShading);
   function marsPosition(lon, lat, height = 0) { return C.Cartesian3.fromDegrees(lon, lat, height, MARS); }
   function setStatus(id, message, warning = false) { $(id).textContent = message; $(id).classList.toggle('warning', warning); }
   let activeLayer = null;
@@ -75,6 +125,10 @@
     const nextLayer = viewer.imageryLayers.addImageryProvider(provider, 0);
     removeImageryErrorListener?.();
     activeLayer = nextLayer;
+    // Small tonal adjustments to the photographic mosaic only. Leave MOLA's
+    // elevation colors and regional science imagery unchanged.
+    if (key === 'viking') { nextLayer.contrast = 1.08; nextLayer.saturation = 1.04; nextLayer.gamma = 1.03; }
+    updateShading();
     removeImageryErrorListener = provider.errorEvent.addEventListener(() => {
       if (!disposed && activeLayer === nextLayer) setStatus('map-status', 'Some tiles could not load. Check the tile host or try another layer.', true);
     });
@@ -106,8 +160,9 @@
   const pulseStart = performance.now();
   sites.forEach((site, index) => {
     const id = `site-${site.id}`;
+    const markerColor = site.id === 'insight' ? INSIGHT_COLOR : LANDMARK_COLOR;
     viewer.entities.add({ id, name: `${site.name} — ${site.mission}`, position: marsPosition(site.lon, site.lat, 1200), description: `<h2>${site.name}</h2><p><strong>${site.mission}</strong></p><p>${site.description}</p>`,
-      point: { pixelSize: reducedMotion ? 11 : new C.CallbackProperty(() => 11 + 2.5 * Math.sin((performance.now() - pulseStart) / 1000 * 2.5 + index * 0.65), false), color: site.id === 'insight' ? C.Color.GOLD : ACCENT, outlineColor: ACCENT.withAlpha(0.3), outlineWidth: 6 },
+      point: { pixelSize: reducedMotion ? 11 : new C.CallbackProperty(() => 11 + 2.5 * Math.sin((performance.now() - pulseStart) / 1000 * 2.5 + index * 0.65), false), color: markerColor, outlineColor: markerColor.withAlpha(0.3), outlineWidth: 6 },
       label: { text: site.category ? site.name : site.mission, font: '12px Consolas, monospace', fillColor: C.Color.WHITE, outlineColor: C.Color.BLACK, outlineWidth: 3, style: C.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new C.Cartesian2(0, -23), showBackground: true, backgroundColor: C.Color.fromCssColorString('#0b0e14').withAlpha(0.8), backgroundPadding: new C.Cartesian2(7, 5), distanceDisplayCondition: new C.DistanceDisplayCondition(0, 10000000) }
     });
     siteByEntityId.set(id, site);
@@ -146,7 +201,8 @@
     openSitePopup(site);
     inspectLocation(C.Cartographic.fromDegrees(site.lon, site.lat), site);
   }));
-  viewer.camera.setView({ destination: marsPosition(50, 15, 9500000), orientation: { heading: 0, pitch: -C.Math.PI_OVER_TWO, roll: 0 } });
+  // Start over Tharsis and Valles Marineris so the opening view has recognizable surface structure.
+  viewer.camera.setView({ destination: marsPosition(-95, 12, 9500000), orientation: { heading: 0, pitch: -C.Math.PI_OVER_TWO, roll: 0 } });
   // Coverage bounds, TileMatrixSet identifiers and maximum levels come from
   // each NASA Mars Trek WMTS GetCapabilities document, fetched and parsed at
   // run time; every tile URL is validated against that document before it is
@@ -459,7 +515,7 @@
     selectedLocationMarker = viewer.entities.add({
       name: 'Inspected location',
       position: MARS.cartographicToCartesian(new C.Cartographic(point.longitude, point.latitude, 50)),
-      point: { pixelSize: 9, color: C.Color.GOLD, outlineColor: C.Color.BLACK, outlineWidth: 2 }
+      point: { pixelSize: 9, color: isStation ? INSIGHT_COLOR : site ? LANDMARK_COLOR : C.Color.GOLD, outlineColor: C.Color.BLACK, outlineWidth: 2 }
     });
     $('telemetry-bar').scrollTop = 0;
   }
@@ -510,7 +566,7 @@
   const weather = window.MarsWeather.init({ $, listen, setStatus, requests, closeSitePopup, isDisposed: () => disposed });
   function dispose() {
     if (disposed) return; disposed = true;
-    weather.dispose(); requests.abortAll();
+    weather.dispose(); requests.abortAll(); removeLightListener();
     if (telemetryFrame !== null) cancelAnimationFrame(telemetryFrame);
     cleanups.forEach((cleanup) => cleanup()); removeCameraListener(); removeImageryErrorListener?.(); removeHiriseErrorListener?.(); removeCtxErrorListener?.();
     if (!handler.isDestroyed()) handler.destroy();
