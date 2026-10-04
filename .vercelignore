@@ -1,0 +1,12 @@
+.git
+.freebuff
+.vercel
+dist
+preview.html
+.env
+.env.*
+Open Mars Globe.url
+Open Mars Globe.cmd
+Start Mars Globe.ps1
+local-server.cjs
+tests

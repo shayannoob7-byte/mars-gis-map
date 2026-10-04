@@ -19,6 +19,12 @@ An interactive Mars globe and solar-system explorer built with vanilla HTML, CSS
 
 On Windows with Node.js installed, double-click `Open Mars Globe.cmd`. This starts a standalone local server at http://127.0.0.1:8765/ that continues running after Freebuff closes. After a computer restart, launch it again. Alternatively, serve this directory using any static web server. No build step is required. An internet connection is needed for Cesium and remote imagery services.
 
+## Deploy to Vercel
+
+Import this GitHub repository into Vercel with the repository root as the Root Directory. The checked-in `vercel.json` selects the Other framework preset, runs `npm run build`, and publishes `dist/`. No environment variables are required for the current public NASA feeds. The build copies only application assets and source notes; the local Node server is not deployed.
+
+For a CLI deployment, sign in with `npx vercel login`, then run `npx vercel --prod` from the repository root. Run `npm run build` locally to inspect the output first.
+
 ## Files
 
 - `index.html`: application markup and controls.

@@ -2,6 +2,7 @@
   "name": "mars-gis-map",
   "private": true,
   "scripts": {
+    "build": "node scripts/build-site.cjs",
     "start": "node local-server.cjs",
     "test": "node --test",
     "preview:build": "node scripts/build-preview.cjs",

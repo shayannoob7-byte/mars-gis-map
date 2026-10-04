@@ -1,5 +1,7 @@
 # Local editor state and generated desktop preview
 .freebuff/
+.vercel/
+dist/
 preview.html
 Open Mars Globe.url
 
@@ -10,3 +12,5 @@ Open Mars Globe.url
 Thumbs.db
 .DS_Store
 *.lnk
+
+.vercel
