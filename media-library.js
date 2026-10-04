@@ -79,6 +79,7 @@
     }
   }
   async function search() {
+    $('media-heading').textContent = `NASA media · ${query}`;
     const version = ++searchVersion;
     searchRequests.abortAll(); clearDetail();
     $('media-results').replaceChildren();
@@ -122,7 +123,6 @@
     type = 'image,video'; page = 1; hasNext = false;
     $('media-query').value = query;
     $('media-type').value = type;
-    $('media-heading').textContent = `NASA media · ${query}`;
     previousFocus = document.activeElement; dialog.showModal(); $('media-query').focus();
     search();
   });

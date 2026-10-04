@@ -21,7 +21,11 @@ function createServer() { return http.createServer((req, res) => {
   if (!['GET', 'HEAD'].includes(req.method)) {
     res.writeHead(405, { Allow: 'GET, HEAD' }); res.end(); return;
   }
-  const pathname = new URL(req.url, 'http://127.0.0.1').pathname;
+  let pathname;
+  try { pathname = new URL(req.url, 'http://127.0.0.1').pathname; }
+  catch {
+    res.writeHead(400); res.end(req.method === 'HEAD' ? undefined : 'Bad request'); return;
+  }
   if (pathname === '/__mars_health') {
     res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
     res.end(req.method === 'HEAD' ? '' : 'mars-gis-local-v1'); return;

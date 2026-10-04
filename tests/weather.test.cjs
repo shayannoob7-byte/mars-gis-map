@@ -34,6 +34,10 @@ test('cached weather renders sorted observations and date/age even when offline'
   await ui.click('rems-refresh');
   assert.match(ui.$('rems-status').textContent, /unreachable.*2026-01-02/);
   assert.equal(ui.$('rems-status').warning, true);
+  ui.click('close-rems');
+  ui.click('open-rems');
+  assert.match(ui.$('rems-status').textContent, /unreachable/);
+  assert.equal(ui.$('rems-status').warning, true);
   ui.dispose();
 });
 test('refresh recovers after failure, sanitizes fields, and retains newer cached sols', async () => {
@@ -45,6 +49,9 @@ test('refresh recovers after failure, sanitizes fields, and retains newer cached
   await ui.click('rems-refresh');
   await ui.click('rems-refresh');
   assert.equal(ui.$('rems-sol').textContent, '5');
+  assert.equal(ui.$('rems-status').warning, false);
+  ui.click('close-rems');
+  ui.click('open-rems');
   assert.equal(ui.$('rems-status').warning, false);
   const cached = JSON.parse(ui.storage.get('mars-rems-observations-v1'));
   assert.deepEqual(cached.records.map(r => r.sol), ['5', '3', '2']);

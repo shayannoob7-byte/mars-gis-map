@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const { createServer } = require('../local-server.cjs');
+const http = require('node:http');
 
 test('local server serves all application modules and restricts unrelated paths/methods', async () => {
   const server = createServer().listen(0, '127.0.0.1');
@@ -19,6 +20,20 @@ test('local server serves all application modules and restricts unrelated paths/
     assert.equal(await head.text(), '');
     assert.equal((await fetch(base + '/package.json')).status, 404);
     assert.equal((await fetch(base + '/', { method: 'POST' })).status, 405);
+    for (const method of ['GET', 'HEAD']) {
+      const bad = await new Promise((resolve, reject) => {
+        const request = http.request({ hostname: '127.0.0.1', port: server.address().port,
+          path: 'http://[', method }, response => {
+          let body = '';
+          response.on('data', chunk => { body += chunk; });
+          response.on('end', () => resolve({ status: response.statusCode, body }));
+        });
+        request.on('error', reject); request.end();
+      });
+      assert.equal(bad.status, 400);
+      assert.equal(bad.body, method === 'HEAD' ? '' : 'Bad request');
+    }
+    assert.equal((await fetch(base + '/')).status, 200, 'server survives malformed requests');
   } finally {
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));

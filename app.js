@@ -377,6 +377,7 @@
         ctxSpec, 'CTX: NASA / JPL-Caltech / MSSS · NASA Mars Trek'));
       // Inserted directly above the basemap, below the HiRISE strip.
       ctxLayer = viewer.imageryLayers.addImageryProvider(ctxProvider, 1);
+      ctxLayer.alpha = Number($('hirise-opacity').value) / 100;
       removeCtxErrorListener = ctxProvider.errorEvent.addEventListener(() => {
         if (!disposed && ctxLayer) {
           setStatus('hirise-status', `${site.name} · CTX tiles are unavailable; wider coverage falls back to the global basemap.`, true);
@@ -404,6 +405,7 @@
     const opacity = Number(event.target.value);
     $('hirise-opacity-value').textContent = `${opacity}%`;
     if (hiriseLayer) hiriseLayer.alpha = opacity / 100;
+    if (ctxLayer) ctxLayer.alpha = opacity / 100;
   });
   let profilerEnabled = false;
   let measuredPoints = [];

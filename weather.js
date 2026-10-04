@@ -60,6 +60,7 @@ window.MarsWeather = Object.freeze({
   const REMS_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
   const REMS_HISTORY_ROWS = 10;
   let remsRecords = null, remsLastCheck = 0, remsInFlight = false, remsPreviousFocus = null;
+  let remsFailed = false;
   function remsValue(value) {
     return value !== undefined && value !== null && value !== '' && value !== '--' ? String(value) : '—';
   }
@@ -96,7 +97,8 @@ window.MarsWeather = Object.freeze({
   async function loadRems(force = false) {
     if (isDisposed() || remsInFlight) return;
     if (!force && remsRecords && Date.now() - remsLastCheck < REMS_CHECK_INTERVAL) {
-      renderRems('Saved observations · Checked on opening after 6 hours, or use Refresh feed.');
+      renderRems(remsFailed ? 'NASA feed unreachable; showing saved observations.'
+        : 'Saved observations · Checked on opening after 6 hours, or use Refresh feed.', remsFailed);
       return;
     }
     remsInFlight = true;
@@ -108,11 +110,13 @@ window.MarsWeather = Object.freeze({
       if (!records.length) throw new Error('Feed returned no usable sols.');
       remsRecords = normalizeRems([...records, ...(remsRecords || [])]).slice(0, 60);
       remsLastCheck = Date.now();
+      remsFailed = false;
       // Trim the cache to the displayed window so storage stays small.
       try { localStorage.setItem(REMS_CACHE_KEY, JSON.stringify({ at: remsLastCheck, records: remsRecords })); } catch (error) { /* Optional cache. */ }
       renderRems('NASA feed checked · Latest available observations; not live weather.');
     } catch (error) {
       if (isDisposed()) return;
+      remsFailed = true;
       if (remsRecords) renderRems('NASA feed unreachable; showing saved observations.', true);
       else setStatus('rems-status', 'NASA REMS feed unreachable. Check the connection, then use Refresh feed.', true);
     } finally { remsInFlight = false; }

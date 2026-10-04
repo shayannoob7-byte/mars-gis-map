@@ -1,6 +1,6 @@
 # HiRISE regional overlays
 
-The globe streams three genuine NASA Mars Trek HiRISE mosaics. Select a region under **HiRISE Close-Up** to enable its overlay and fly to it. Opacity blends it with Viking or MOLA. Changing basemaps preserves the overlay; selecting Off removes it.
+The globe streams three genuine NASA Mars Trek HiRISE mosaics. Select a region under **HiRISE Close-Up** to enable its overlay and fly to it. Opacity blends it with Viking or MOLA, including fading the supporting CTX layer at Gale; at 0% only the global basemap remains. Changing basemaps preserves the overlay; selecting Off removes it.
 
 ## Provenance
 

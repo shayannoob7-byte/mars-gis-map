@@ -117,9 +117,13 @@
     } catch { /* Codes remain usable without the optional mission-name catalog. */ }
   }
   function stop() { ++generation; busy = false; clearInterval(timer); timer = null; requests.abortAll(); }
+  function start() {
+    if (!dialog.open) return;
+    render(); refresh(); loadNames();
+    if (timer === null) timer = setInterval(() => { if (!document.hidden) { render(); refresh(); } }, 15000);
+  }
   $('open-dsn').addEventListener('click', () => {
-    previousFocus = document.activeElement; dialog.showModal(); $('close-dsn').focus(); render(); refresh(); loadNames();
-    timer = setInterval(() => { if (!document.hidden) { render(); refresh(); } }, 15000);
+    previousFocus = document.activeElement; dialog.showModal(); $('close-dsn').focus(); start();
   });
   $('close-dsn').addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => { stop(); previousFocus?.focus(); });
@@ -128,4 +132,5 @@
   $('dsn-mars').addEventListener('change', render);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && dialog.open) { render(); refresh(); } });
   window.addEventListener('pagehide', stop);
+  window.addEventListener('pageshow', event => { if (event.persisted) start(); });
 })(typeof window === 'object' ? window : globalThis);
