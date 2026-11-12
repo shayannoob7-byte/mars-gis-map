@@ -41,7 +41,7 @@ Credit: NASA / JPL-Caltech / MSSS. The layer is inserted at index 1 — directly
 - These are regional grayscale mosaics, not continuous global HiRISE coverage. Holes and seams can occur within their bounding rectangles.
 - Pixels outside coverage display the CTX layer for Gale Crater, or the selected global basemap elsewhere.
 - Tile coordinates outside the matrix bounds published in GetCapabilities are answered locally with a transparent tile; such requests are never sent, so they cannot produce 404 responses.
-- These imagery overlays do not supply a terrain model. Existing distance calculations still exclude terrain relief.
+- These imagery overlays do not supply a terrain model. The separate global MOLA MEGDR dataset supports coarse numerical elevation analysis; existing distance calculations still exclude terrain relief. See [terrain data notes](TERRAIN-DATA.md).
 - Opportunity’s landing marker uses 1.95°S, 5.53°W (354.47°E), matching NASA’s Eagle Crater landing-site reference. The mosaic camera target is centered separately within the imagery footprint.
 - Online NASA tile availability is required. Failures are reported in the HiRISE status area.
 - The standalone preview embeds the same source CSS and JavaScript. Run `node scripts/build-preview.cjs` after changing any application source. The generator embeds all local scripts and styles from index.html.

@@ -410,7 +410,7 @@
   let profilerEnabled = false;
   let measuredPoints = [];
   const measurementEntities = [];
-  const defaultMeasurementNote = 'Imagery only: terrain elevations and slope are unavailable. Surface measurements exclude terrain relief.';
+  const defaultMeasurementNote = 'Distances use the reference sphere or ellipsoid and exclude terrain relief. Coarse-grid MOLA analysis is available separately.';
   function clearMeasurement() {
     measurementEntities.forEach((entity) => viewer.entities.remove(entity));
     measurementEntities.length = 0; measuredPoints = [];
@@ -503,6 +503,9 @@
   const stationCoordinates = C.Cartographic.fromDegrees(INSIGHT.lon, INSIGHT.lat);
   let selectedLocationMarker = null;
   function inspectLocation(point, site = null) {
+    window.dispatchEvent(new CustomEvent('mars-location-change', { detail: {
+      latitude: C.Math.toDegrees(point.latitude), longitude: C.Math.toDegrees(point.longitude)
+    } }));
     const distanceKm = centralAngle(point, stationCoordinates) * MEAN_RADIUS_KM;
     const isStation = site?.id === INSIGHT.id;
     $('location-name').textContent = site ? `${site.name} · ${site.mission}` : 'Selected surface point';
@@ -522,6 +525,7 @@
     $('telemetry-bar').scrollTop = 0;
   }
   function clearLocation() {
+    window.dispatchEvent(new CustomEvent('mars-location-change', { detail: null }));
     if (selectedLocationMarker) viewer.entities.remove(selectedLocationMarker);
     selectedLocationMarker = null;
     $('location-name').textContent = 'Click anywhere on Mars to inspect a location.';
@@ -537,6 +541,17 @@
     flyToMars(INSIGHT.lat, INSIGHT.lon, 200000);
   });
   const handler = new C.ScreenSpaceEventHandler(viewer.scene.canvas);
+  let marsWalkSelectionHandler = null;
+  window.MarsGlobe = Object.freeze({
+    flyTo: (latitude, longitude, altitude = 180000) => flyToMars(latitude, longitude, altitude),
+    getViewer: () => viewer,
+    getCesium: () => C,
+    getEllipsoid: () => MARS,
+    setMarsWalkSelectionHandler(callback) {
+      marsWalkSelectionHandler = typeof callback === 'function' ? callback : null;
+      return () => { if (marsWalkSelectionHandler === callback) marsWalkSelectionHandler = null; };
+    }
+  });
   let lastPointerPosition = null, telemetryFrame = null;
   function updateTelemetry() {
     telemetryFrame = null; if (disposed) return;
@@ -550,6 +565,22 @@
   function scheduleTelemetry() { if (telemetryFrame === null && !disposed) telemetryFrame = requestAnimationFrame(updateTelemetry); }
   handler.setInputAction((movement) => { lastPointerPosition = C.Cartesian2.clone(movement.endPosition); scheduleTelemetry(); }, C.ScreenSpaceEventType.MOUSE_MOVE);
   handler.setInputAction((movement) => {
+    if (marsWalkSelectionHandler) {
+      const picked = viewer.scene.pick(movement.position), site = picked?.id?.id ? siteByEntityId.get(picked.id.id) : null;
+      if (site) {
+        marsWalkSelectionHandler({ latitude: site.lat, longitude: site.lon, name: site.name });
+        return;
+      }
+      const hit = viewer.camera.pickEllipsoid(movement.position, MARS);
+      if (C.defined(hit)) {
+        const point = MARS.cartesianToCartographic(hit);
+        marsWalkSelectionHandler({
+          latitude: C.Math.toDegrees(point.latitude),
+          longitude: C.Math.toDegrees(point.longitude)
+        });
+      }
+      return;
+    }
     if (profilerEnabled) { handleProfilerClick(movement.position); return; }
     const picked = viewer.scene.pick(movement.position), site = picked?.id?.id ? siteByEntityId.get(picked.id.id) : null;
     if (site) {
@@ -558,7 +589,10 @@
     } else {
       closeSitePopup();
       const hit = viewer.camera.pickEllipsoid(movement.position, MARS);
-      if (C.defined(hit)) inspectLocation(MARS.cartesianToCartographic(hit));
+      if (C.defined(hit)) {
+        const point = MARS.cartesianToCartographic(hit);
+        inspectLocation(point);
+      }
     }
   }, C.ScreenSpaceEventType.LEFT_CLICK);
   listen(viewer.scene.canvas, 'mouseleave', () => { lastPointerPosition = null; scheduleTelemetry(); });

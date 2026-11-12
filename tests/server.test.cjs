@@ -9,11 +9,24 @@ test('local server serves all application modules and restricts unrelated paths/
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    for (const file of ['/', '/style.css', '/data-services.js', '/weather.js', '/app.js', '/solar-system.js', '/media-library.js', '/dsn-now.js']) {
+    for (const file of ['/', '/style.css', '/data-services.js', '/science-data.js', '/science-explorer.js',
+      '/terrain-model.js', '/marswalk-planner.js', '/marswalk-navigation.js', '/marswalk-terrain.js', '/marswalk.js', '/weather.js', '/app.js',
+      '/solar-system.js', '/media-library.js', '/dsn-now.js', '/MARSWALK.md']) {
       const response = await fetch(base + file);
       assert.equal(response.status, 200, file);
       assert.ok((await response.text()).length > 0);
       assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+    }
+    for (const file of ['/data/mola-meg004-topography.img', '/data/mola-meg004-areoid-radius-offset.img']) {
+      const response = await fetch(base + file);
+      assert.equal(response.status, 200, file);
+      assert.equal(response.headers.get('content-type'), 'application/octet-stream');
+      assert.equal((await response.arrayBuffer()).byteLength, 2073600, file);
+    }
+    for (const region of require('../terrain-model.js').REGIONS) {
+      const response = await fetch(base + `/${region.file}`);
+      assert.equal(response.status, 200, region.file);
+      assert.equal((await response.arrayBuffer()).byteLength, 256 * 256 * 2, region.file);
     }
     const head = await fetch(base + '/weather.js', { method: 'HEAD' });
     assert.equal(head.status, 200);
