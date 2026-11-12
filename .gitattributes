@@ -1,0 +1,3 @@
+# Scientific raster data must never undergo line-ending conversion.
+*.img binary
+*.bin binary
