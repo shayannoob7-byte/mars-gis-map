@@ -8,6 +8,7 @@ const files = new Map([
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
   ['/data-services.js', ['data-services.js', 'text/javascript; charset=utf-8']],
+  ['/panel-layout.js', ['panel-layout.js', 'text/javascript; charset=utf-8']],
   ['/science-data.js', ['science-data.js', 'text/javascript; charset=utf-8']],
   ['/terrain-model.js', ['terrain-model.js', 'text/javascript; charset=utf-8']],
   ['/marswalk-planner.js', ['marswalk-planner.js', 'text/javascript; charset=utf-8']],

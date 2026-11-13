@@ -4,6 +4,8 @@ An interactive Mars globe and solar-system explorer built with vanilla HTML, CSS
 
 ## Features
 
+- Independently minimize and reopen Telemetry and Controls. Phones and tablets start with a clear globe and a bottom panel bar; only one panel opens at a time. Panel preferences are saved separately for compact and desktop layouts. Touch controls, safe-area spacing, and dynamic viewport sizing keep the interface usable on mobile browsers.
+
 - Sharper HiDPI globe rendering, subtle Viking mosaic color refinement, and a sparse illustrative star field. Optional camera-relative shading adds depth at globe scale, fades at close range, and stays disabled for MOLA; it does not represent actual Martian sunlight or add terrain relief.
 - DSN Now communications dashboard with Goldstone, Madrid, and Canberra antennas, spacecraft targets, uplink/downlink activity, reported data rates, and a Mars-mission filter. Source timestamps and stale-data warnings distinguish live retrieval from current observations.
 - Open any location overview and select **Images & videos of [location]** to search NASA's library for that place. Each location starts a fresh search with both media types and the first results page. Filter images/videos, browse result pages, and view images or play videos with NASA credits and source links. The library is accessed from location overviews rather than the command center.

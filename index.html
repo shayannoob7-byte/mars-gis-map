@@ -7,6 +7,7 @@
   <title>3D Mars Globe Command Center</title>
   <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Widgets/widgets.css">
   <link rel="stylesheet" href="style.css">
+  <script defer src="panel-layout.js"></script>
   <script defer src="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Cesium.js"></script>
   <script defer src="data-services.js"></script>
   <script defer src="science-data.js"></script>
@@ -58,6 +59,7 @@
     </div>
   </div>
   <section id="telemetry-bar" class="hud-panel" aria-labelledby="telemetry-title">
+    <div class="panel-toolbar"><button id="minimize-telemetry" class="panel-minimize" type="button" aria-label="Minimize Mars telemetry">− <span>Minimize</span></button></div>
     <h2 id="telemetry-title"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M3 15c5 1 11-2 18-7M6 7l4 2-2 3 4 2 2 5"/></svg><span class="heading-neutral">Mars</span> Telemetry</h2>
     <dl class="telemetry-grid">
       <dt>Latitude</dt><dd id="cursor-lat">—</dd>
@@ -96,6 +98,7 @@
     <a class="source-link" href="https://api.nasa.gov/insight_weather/?api_key=DEMO_KEY&amp;feedtype=json&amp;ver=1.0" target="_blank" rel="noopener noreferrer">NASA observation source ↗</a>
   </section>
   <aside id="control-panel" class="hud-panel" aria-labelledby="command-title">
+    <div class="panel-toolbar"><button id="minimize-controls" class="panel-minimize" type="button" aria-label="Minimize command center">− <span>Minimize</span></button></div>
     <p class="eyebrow">NASA Space Apps · Mars Explorer</p>
     <h1 id="command-title">3D MARS GLOBE COMMAND CENTER</h1>
     <button id="open-solar" class="hud-btn" type="button">Explore Solar System ↗</button>
@@ -158,6 +161,10 @@
     <p class="help-text navigation-help">Drag to rotate · Scroll to zoom · Ctrl + drag to tilt. Select a landing-site marker for mission details. Press Escape to exit the measurement tool.</p>
     <footer class="attribution">Rendering: <a href="https://cesium.com/" target="_blank" rel="noopener noreferrer">CesiumJS</a> · Viking imagery: <a href="https://astro.arcgis.com/arcgis/rest/services/OnMars/MDIM/MapServer" target="_blank" rel="noopener noreferrer">NASA / JPL / USGS / Esri</a> · MOLA: <a href="https://planetarymaps.usgs.gov/" target="_blank" rel="noopener noreferrer">NASA / USGS Astrogeology</a> · Weather: <a href="https://api.nasa.gov/" target="_blank" rel="noopener noreferrer">NASA</a></footer>
   </aside>
+  <nav id="panel-dock" aria-label="Globe panels">
+    <button id="toggle-telemetry" type="button" aria-controls="telemetry-bar" aria-expanded="true">Telemetry <span aria-hidden="true">↗</span></button>
+    <button id="toggle-controls" type="button" aria-controls="control-panel" aria-expanded="true">Controls <span aria-hidden="true">↗</span></button>
+  </nav>
   <aside id="marswalk-workspace" class="hud-panel" aria-labelledby="marswalk-title" hidden>
     <header class="marswalk-header">
       <div><p class="eyebrow">MARS SURFACE EXPLORER</p><h2 id="marswalk-title">MarsWalk</h2></div>

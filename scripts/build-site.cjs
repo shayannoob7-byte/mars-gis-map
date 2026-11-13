@@ -4,7 +4,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const terrainRegions = require('../terrain-model.js').REGIONS;
 const files = [
-  'index.html', 'style.css', 'app.js', 'data-services.js', 'science-data.js',
+  'index.html', 'style.css', 'app.js', 'data-services.js', 'panel-layout.js', 'science-data.js',
   'marswalk-planner.js', 'marswalk-navigation.js', 'marswalk-terrain.js', 'marswalk.js', 'MARSWALK.md',
   'science-explorer.js', 'terrain-model.js', 'weather.js',
   'solar-system.js', 'media-library.js', 'dsn-now.js', 'HIRISE.md',

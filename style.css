@@ -24,6 +24,7 @@
 html, body {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: radial-gradient(circle at top, rgba(154, 92, 63, 0.18), transparent 30%), var(--bg-primary);
   font-family: "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
@@ -463,4 +464,59 @@ body.marswalk-flight-active #marswalk-workspace {
   .marswalk-coordinate-grid { gap: 0 6px; }
   .marswalk-surface-options span, .marswalk-profile-options span { font-size: 7px; }
   .marswalk-endpoint-summary, .marswalk-route-summary { grid-template-columns: 66px minmax(0, 1fr); }
+}
+
+/* Reopenable panels: the map stays usable on small screens. */
+#cesiumContainer { height: 100dvh; }
+.panel-toolbar { position: sticky; top: -16px; z-index: 2; display: flex; justify-content: flex-end; padding: 4px 0; margin: -8px 0 8px; background: #121820; }
+.panel-minimize, #panel-dock button { min-height: 44px; border: 1px solid var(--panel-border); border-radius: 10px; padding: 8px 12px; color: var(--text-primary); background: #111923; font: inherit; font-size: 13px; cursor: pointer; touch-action: manipulation; }
+.panel-minimize { min-width: 44px; }
+.panel-minimize:hover, #panel-dock button:hover { border-color: var(--accent-strong); background: #2c211c; }
+.panel-minimize:focus-visible, #panel-dock button:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
+#telemetry-bar.panel-minimized, #control-panel.panel-minimized { display: none; }
+#panel-dock { position: fixed; z-index: 1100; top: max(20px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); right: max(20px, env(safe-area-inset-right)); display: flex; justify-content: space-between; pointer-events: none; }
+#panel-dock button { pointer-events: auto; box-shadow: 0 6px 24px #0008; }
+#panel-dock button span { margin-left: 12px; color: var(--accent-strong); }
+#toggle-controls { margin-left: auto; }
+#panel-dock .panel-is-open { visibility: hidden; pointer-events: none; }
+body.marswalk-open #panel-dock, body:has(#solar-view:not([hidden])) #panel-dock { display: none; }
+#telemetry-bar, #control-panel { max-height: calc(100dvh - 40px); overscroll-behavior: contain; }
+@media (min-width: 901px) and (max-width: 1280px) {
+  #telemetry-bar { width: 250px; left: 12px; padding: 12px; }
+  #control-panel { width: 285px; right: 12px; padding: 12px; }
+  #telemetry-title { font-size: 12px; letter-spacing: .07em; }
+  #command-title { font-size: 16px; }
+}
+@media (max-width: 900px) {
+  #panel-dock { top: auto; bottom: max(10px, env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); gap: 10px; padding: 5px; border: 1px solid var(--panel-border); border-radius: 15px; background: #0c121bee; }
+  #panel-dock button { flex: 1; min-width: 0; min-height: 46px; font-size: 14px; margin: 0; visibility: visible; pointer-events: auto; }
+  #panel-dock .panel-is-open { background: #38271e; border-color: var(--accent-strong); }
+  #panel-dock .panel-is-open span { display: inline-block; transform: rotate(180deg); }
+  #telemetry-bar, #control-panel { top: auto; bottom: calc(80px + env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); width: auto; max-height: min(58dvh, 540px); padding: 14px; border-radius: 16px; }
+  .panel-toolbar { top: -14px; margin-top: -8px; }
+  #telemetry-title { font-size: 14px; flex-wrap: wrap; }
+  #command-title { font-size: 18px; letter-spacing: .07em; }
+  .hud-panel { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .hud-btn, .close-btn { min-height: 44px; min-width: 44px; }
+  .help-text, .status-text, .attribution { font-size: 12px; }
+  .telemetry-grid { font-size: 13px; }
+  select, input[type="number"], input[type="text"], input[type="search"] { font-size: 16px; min-height: 44px; }
+  #site-popup { bottom: calc(80px + env(safe-area-inset-bottom)); left: 10px; width: calc(100vw - 20px); max-height: 48dvh; z-index: 1150; }
+  #marswalk-workspace { bottom: max(8px, env(safe-area-inset-bottom)); max-height: 58dvh; width: calc(100vw - 16px); right: 8px; }
+  #marswalk-workspace .hud-btn, #marswalk-workspace summary, #marswalk-workspace .marswalk-text-action { min-height: 44px; font-size: 12px; }
+  #marswalk-workspace summary { display: flex; align-items: center; }
+  #marswalk-workspace input[type="number"], #marswalk-workspace select { font-size: 16px; min-height: 44px; }
+  .marswalk-surface-options label, .marswalk-profile-options label { min-height: 44px; }
+  .marswalk-surface-options span, .marswalk-profile-options span { font-size: 11px; }
+  #marswalk-flight-controls .hud-btn, #marswalk-flight-controls .marswalk-toolbar-speed { min-height: 44px; font-size: 11px; }
+  #marswalk-flight-speed { min-height: 36px; font-size: 14px; }
+  #marswalk-auxiliary-views { top: 116px; width: calc(46vw - 12px); height: min(52dvh, 390px); }
+  #marswalk-pilot-frame { min-width: 0; min-height: 0; width: 46vw; height: 28vw; left: 8px; bottom: max(8px, env(safe-area-inset-bottom)); }
+  .marswalk-auxiliary-heading { min-width: 0; max-width: calc(100% - 12px); }
+  .marswalk-auxiliary-heading small { display: none; }
+}
+@media (max-width: 900px) and (max-height: 500px) {
+  #telemetry-bar, #control-panel { max-height: calc(100dvh - 100px); width: min(380px, calc(100vw - 20px)); left: auto; }
+  #marswalk-workspace { top: 8px; bottom: 8px; max-height: calc(100dvh - 16px); width: min(360px, 56vw); }
+  #marswalk-auxiliary-views { top: 8px; right: 8px; width: 28vw; height: calc(100dvh - 16px); }
 }

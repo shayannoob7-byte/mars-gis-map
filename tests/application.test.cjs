@@ -9,8 +9,8 @@ const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 test('generated preview embeds current sources in dependency order and parses', () => {
   const preview = buildPreview();
   const scripts = [...preview.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(Boolean);
-  assert.equal(scripts.length, 13);
-  ['data-services.js', 'science-data.js', 'terrain-model.js', 'weather.js', 'app.js',
+  assert.equal(scripts.length, 14);
+  ['panel-layout.js', 'data-services.js', 'science-data.js', 'terrain-model.js', 'weather.js', 'app.js',
     'marswalk-planner.js', 'marswalk-navigation.js', 'marswalk-terrain.js', 'marswalk.js', 'science-explorer.js', 'solar-system.js',
     'media-library.js', 'dsn-now.js'].forEach((file, i) => {
     assert.ok(scripts[i].includes(read(file)));
